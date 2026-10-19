@@ -13,6 +13,14 @@
 }
 
 /* FULLSCREEN PHASER ENGINE CANVAS (NO LETTERBOX) */
+.canvas-stack-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
 .phaser-canvas-container {
   position: absolute;
   inset: 0;
@@ -25,6 +33,16 @@
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+/* THREE.JS REAL-TIME 3D CHARACTER LAYER */
+.three-canvas-layer {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2;
+  pointer-events: none; /* Clicks and drag-drops pass straight through to Phaser board */
 }
 
 /* REACT HUD OVERLAY LAYER */

@@ -22,8 +22,6 @@ export class Unit extends Phaser.GameObjects.Container {
 
   // Visual sub-elements
   private pedestal!: Phaser.GameObjects.Graphics;
-  private modelSprite?: Phaser.GameObjects.Image;
-  private avatarCircle?: Phaser.GameObjects.Graphics;
   private hpBarFill!: Phaser.GameObjects.Graphics;
   private manaBarFill!: Phaser.GameObjects.Graphics;
   private barsContainer!: Phaser.GameObjects.Container;
@@ -80,15 +78,25 @@ export class Unit extends Phaser.GameObjects.Container {
 
     // Register occupancy on board
     this.registerOccupancy();
+
+    // Spawn Real 3D Animated Character in Three.js layer
+    EventBus.emit('three-unit-spawn', {
+      id: this.id,
+      modelKey: this.unitData.id,
+      x: this.x,
+      y: this.y,
+      isPlayerOwned: this.isPlayerOwned,
+      starLevel: this.starLevel,
+    });
   }
 
   private createVisuals() {
-    // 1. Base Pedestal Ring (Perspective ellipse on the ground)
+    // 1. Base Pedestal Ring (Tactical glowing ground ring)
     this.pedestal = this.scene.add.graphics();
     const ringColor = this.isPlayerOwned ? 0x3b82f6 : 0xef4444;
 
     // Contact drop shadow beneath unit
-    this.pedestal.fillStyle(0x000000, 0.5);
+    this.pedestal.fillStyle(0x000000, 0.55);
     this.pedestal.fillEllipse(0, 14, 52, 22);
 
     // Dark pedestal platform
@@ -105,51 +113,8 @@ export class Unit extends Phaser.GameObjects.Container {
 
     this.add(this.pedestal);
 
-    // 2. Full-Body 3D Warcraft Isometric Character Model
-    const modelTextureKey = this.unitData.modelKey || `model_${this.unitData.id}`;
-    if (this.scene.textures.exists(modelTextureKey)) {
-      this.modelSprite = this.scene.add.image(0, 15, modelTextureKey);
-      this.modelSprite.setOrigin(0.5, 0.92); // Feet anchored to pedestal
-
-      // Target character height fits within tactical isometric cell (approx 74px)
-      const targetHeight = 74;
-      const scale = targetHeight / this.modelSprite.height;
-      this.modelSprite.setScale(scale);
-      this.add(this.modelSprite);
-
-      // Subtle breathing idle animation for an alive 3D battle look
-      this.scene.tweens.add({
-        targets: this.modelSprite,
-        scaleY: scale * 1.035,
-        y: 14.2,
-        duration: 1700 + Math.random() * 500,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    } else {
-      // Fallback: Portrait Token if model texture is missing
-      const portraitKey = `hero_${this.unitData.id}`;
-      if (this.scene.textures.exists(portraitKey)) {
-        const avatarImage = this.scene.add.image(0, -6, portraitKey);
-        avatarImage.setDisplaySize(38, 38);
-        this.add(avatarImage);
-      } else {
-        this.avatarCircle = this.scene.add.graphics();
-        this.avatarCircle.fillStyle(this.unitData.color, 0.9);
-        this.avatarCircle.fillCircle(0, -6, 18);
-        this.add(this.avatarCircle);
-      }
-
-      // Golden Rim
-      const tokenRim = this.scene.add.graphics();
-      tokenRim.lineStyle(2.5, 0xdfba73, 0.95);
-      tokenRim.strokeCircle(0, -6, 19);
-      this.add(tokenRim);
-    }
-
-    // 3. Overhead Health & Mana Bars (Positioned above character model's head)
-    this.barsContainer = this.scene.add.container(0, -58);
+    // 2. Overhead Health & Mana Bars (Floating right above the 3D character's head)
+    this.barsContainer = this.scene.add.container(0, -66);
 
     // Star Level indicator
     if (this.starLevel > 1) {
@@ -239,6 +204,7 @@ export class Unit extends Phaser.GameObjects.Container {
       ease: 'Back.easeOut',
     });
 
+    EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: true });
     EventBus.emit('unit-drag-start', this);
   }
 
@@ -246,6 +212,7 @@ export class Unit extends Phaser.GameObjects.Container {
     if (!this.isDragging) return;
 
     this.setPosition(pointer.x, pointer.y - 10);
+    EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: true });
 
     // Query prospective tile under pointer
     const tile = this.board.getTileAtWorld(pointer.x, pointer.y);
@@ -278,6 +245,8 @@ export class Unit extends Phaser.GameObjects.Container {
       duration: 160,
       ease: 'Quad.easeOut',
     });
+
+    EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
   }
 
   private handlePlacement(targetTile: TacticalTile) {
@@ -313,7 +282,11 @@ export class Unit extends Phaser.GameObjects.Container {
       y: targetTile.centerY,
       duration: 120,
       ease: 'Quad.easeOut',
+      onUpdate: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
+      },
       onComplete: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
         this.registerOccupancy();
         this.updateDepthByRow();
       },
@@ -329,7 +302,11 @@ export class Unit extends Phaser.GameObjects.Container {
       y,
       duration: 140,
       ease: 'Quad.easeOut',
+      onUpdate: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
+      },
       onComplete: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
         this.updateDepthByRow();
         if (onComplete) onComplete();
       },
@@ -343,7 +320,11 @@ export class Unit extends Phaser.GameObjects.Container {
       y: this.dragStartY,
       duration: 180,
       ease: 'Back.easeOut',
+      onUpdate: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
+      },
       onComplete: () => {
+        EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: false });
         this.isBench = this.originIsBench;
         this.benchIndex = this.originBenchIndex;
         this.gridCol = this.originCol;
@@ -376,5 +357,10 @@ export class Unit extends Phaser.GameObjects.Container {
     } else {
       this.setDepth(20 + this.gridRow * 2);
     }
+  }
+
+  public destroy(fromScene?: boolean) {
+    EventBus.emit('three-unit-remove', { id: this.id });
+    super.destroy(fromScene);
   }
 }
