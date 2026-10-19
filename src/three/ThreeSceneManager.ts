@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { EventBus } from '../game/EventBus';
 
 export interface Unit3DInstance {
@@ -12,6 +13,15 @@ export interface Unit3DInstance {
   baseScale: number;
 }
 
+interface PendingSpawn {
+  id: string;
+  modelKey: string;
+  screenX: number;
+  screenY: number;
+  isPlayerOwned: boolean;
+  starLevel: number;
+}
+
 export class ThreeSceneManager {
   private static instance: ThreeSceneManager | null = null;
   private renderer!: THREE.WebGLRenderer;
@@ -22,7 +32,9 @@ export class ThreeSceneManager {
 
   private gltfLoader = new GLTFLoader();
   private loadedGltfTemplates = new Map<string, any>();
+  private pendingSpawns = new Map<string, PendingSpawn>();
   private units = new Map<string, Unit3DInstance>();
+  private isLoaded = false;
 
   private width = window.innerWidth;
   private height = window.innerHeight;
@@ -126,6 +138,15 @@ export class ThreeSceneManager {
     });
 
     await Promise.all(promises);
+    this.isLoaded = true;
+
+    // Flush any units that were requested before GLB assets finished downloading
+    if (this.pendingSpawns.size > 0) {
+      this.pendingSpawns.forEach((p) => {
+        this.spawnUnit(p.id, p.modelKey, p.screenX, p.screenY, p.isPlayerOwned, p.starLevel);
+      });
+      this.pendingSpawns.clear();
+    }
   }
 
   private setupEventListeners() {
@@ -174,13 +195,19 @@ export class ThreeSceneManager {
       return;
     }
 
+    if (!this.isLoaded) {
+      // Model files are still loading over the network; queue this spawn
+      this.pendingSpawns.set(id, { id, modelKey, screenX, screenY, isPlayerOwned, starLevel });
+      return;
+    }
+
     // Determine template
     const templateKey = modelKey.replace('model_', '');
     const gltf = this.loadedGltfTemplates.get(templateKey) || this.loadedGltfTemplates.get('warrior');
     if (!gltf) return;
 
-    // Clone 3D model hierarchy
-    const clone = gltf.scene.clone(true);
+    // Correctly clone SkinnedMesh and bones using SkeletonUtils
+    const clone = SkeletonUtils.clone(gltf.scene) as THREE.Group;
 
     // Apply materials and tints if needed
     clone.traverse((child: any) => {
@@ -210,7 +237,7 @@ export class ThreeSceneManager {
     clone.rotation.x = 0.35;
     clone.rotation.y = isPlayerOwned ? 0.2 : Math.PI - 0.2;
 
-    // Set screen position in Three space
+    // Set screen position in Three space (feet anchored at tile center)
     const threePos = this.screenToThree(screenX, screenY);
     clone.position.set(threePos.x, threePos.y, threePos.z);
 
@@ -248,12 +275,19 @@ export class ThreeSceneManager {
   }
 
   public updateUnitPosition(id: string, screenX: number, screenY: number, isDragging: boolean) {
+    if (this.pendingSpawns.has(id)) {
+      const pending = this.pendingSpawns.get(id)!;
+      pending.screenX = screenX;
+      pending.screenY = screenY;
+      return;
+    }
+
     const unit = this.units.get(id);
     if (!unit) return;
 
     const threePos = this.screenToThree(screenX, screenY);
     unit.model.position.x = threePos.x;
-    unit.model.position.y = threePos.y + 4; // Slight visual alignment with pedestal center
+    unit.model.position.y = threePos.y; // Feet planted precisely at tile center
     unit.model.position.z = threePos.z;
 
     if (isDragging !== unit.isDragging) {

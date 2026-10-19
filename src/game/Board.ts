@@ -483,20 +483,45 @@ export class Board {
     return tile ? tile.occupiedBy !== null : true;
   }
 
+  private isPointInQuad(px: number, py: number, quad: PerspectiveVertex[]): boolean {
+    let sign = 0;
+    for (let i = 0; i < 4; i++) {
+      const p1 = quad[i];
+      const p2 = quad[(i + 1) % 4];
+      const cross = (p2.x - p1.x) * (py - p1.y) - (p2.y - p1.y) * (px - p1.x);
+      if (cross !== 0) {
+        const currentSign = cross > 0 ? 1 : -1;
+        if (sign === 0) {
+          sign = currentSign;
+        } else if (sign !== currentSign) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   public getTileAtWorld(worldX: number, worldY: number): TacticalTile | null {
-    // 1. Check Bench slots
+    // 1. Check Bench slots (with generous padding for comfortable dropping)
     const benchY = this.benchStartY;
-    if (Math.abs(worldY - benchY) <= this.benchSlotH / 2 + 10) {
+    if (Math.abs(worldY - benchY) <= this.benchSlotH / 2 + 16) {
       for (const bTile of this.benchTiles) {
-        if (Math.abs(worldX - bTile.centerX) <= this.benchSlotW / 2 + 4) {
+        if (Math.abs(worldX - bTile.centerX) <= this.benchSlotW / 2 + 10) {
           return bTile;
         }
       }
     }
 
-    // 2. Check Board grid tiles
+    // 2. Exact polygon containment test inside 8x8 perspective board
+    for (const tile of this.tiles.values()) {
+      if (tile.vertices && this.isPointInQuad(worldX, worldY, tile.vertices)) {
+        return tile;
+      }
+    }
+
+    // 3. Fallback: Closest tile on board within reasonable proximity
     let closestTile: TacticalTile | null = null;
-    let minDistanceSq = 45 * 45;
+    let minDistanceSq = 75 * 75;
 
     for (const tile of this.tiles.values()) {
       const dx = worldX - tile.centerX;

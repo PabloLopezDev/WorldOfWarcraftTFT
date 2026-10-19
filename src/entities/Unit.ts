@@ -91,30 +91,30 @@ export class Unit extends Phaser.GameObjects.Container {
   }
 
   private createVisuals() {
-    // 1. Base Pedestal Ring (Tactical glowing ground ring)
+    // 1. Base Pedestal Ring (Tactical glowing ground ring dead-center in tile)
     this.pedestal = this.scene.add.graphics();
     const ringColor = this.isPlayerOwned ? 0x3b82f6 : 0xef4444;
 
     // Contact drop shadow beneath unit
     this.pedestal.fillStyle(0x000000, 0.55);
-    this.pedestal.fillEllipse(0, 14, 52, 22);
+    this.pedestal.fillEllipse(0, 0, 48, 20);
 
     // Dark pedestal platform
     this.pedestal.fillStyle(0x0a1322, 0.85);
-    this.pedestal.fillEllipse(0, 14, 44, 18);
+    this.pedestal.fillEllipse(0, 0, 42, 16);
 
     // Tactical team glowing border ring
     this.pedestal.lineStyle(2.5, ringColor, 0.95);
-    this.pedestal.strokeEllipse(0, 14, 44, 18);
+    this.pedestal.strokeEllipse(0, 0, 42, 16);
 
     // Outer subtle team glow
     this.pedestal.lineStyle(1.5, ringColor, 0.4);
-    this.pedestal.strokeEllipse(0, 14, 50, 22);
+    this.pedestal.strokeEllipse(0, 0, 48, 20);
 
     this.add(this.pedestal);
 
     // 2. Overhead Health & Mana Bars (Floating right above the 3D character's head)
-    this.barsContainer = this.scene.add.container(0, -66);
+    this.barsContainer = this.scene.add.container(0, -68);
 
     // Star Level indicator
     if (this.starLevel > 1) {
@@ -169,9 +169,9 @@ export class Unit extends Phaser.GameObjects.Container {
   }
 
   private setupInteractivity() {
-    this.setSize(54, 76);
+    this.setSize(52, 74);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(-27, -58, 54, 76),
+      new Phaser.Geom.Rectangle(-26, -68, 52, 74),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -211,7 +211,8 @@ export class Unit extends Phaser.GameObjects.Container {
   private onDrag(pointer: Phaser.Input.Pointer) {
     if (!this.isDragging) return;
 
-    this.setPosition(pointer.x, pointer.y - 10);
+    // Unit stays aligned with pointer
+    this.setPosition(pointer.x, pointer.y);
     EventBus.emit('three-unit-update', { id: this.id, x: this.x, y: this.y, isDragging: true });
 
     // Query prospective tile under pointer
