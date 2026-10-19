@@ -24,7 +24,8 @@ export const INITIAL_UNITS: UnitData[] = [
       manaCost: 100,
       damage: 220,
     },
-    color: 0xc69b6d, // Warrior Tan/Bronze
+    icon: '/hero_warrior.jpg',
+    color: 0xc69b6d,
   },
   {
     id: 'paladin',
@@ -49,7 +50,8 @@ export const INITIAL_UNITS: UnitData[] = [
       manaCost: 100,
       heal: 300,
     },
-    color: 0xf58cba, // Paladin Pink/Gold
+    icon: '/hero_paladin.jpg',
+    color: 0xf58cba,
   },
   {
     id: 'mage',
@@ -74,7 +76,8 @@ export const INITIAL_UNITS: UnitData[] = [
       manaCost: 90,
       damage: 280,
     },
-    color: 0x3fc7eb, // Mage Cyan/Blue
+    icon: '/hero_mage.jpg',
+    color: 0x3fc7eb,
   },
   {
     id: 'hunter',
@@ -99,7 +102,8 @@ export const INITIAL_UNITS: UnitData[] = [
       manaCost: 80,
       damage: 260,
     },
-    color: 0xaad372, // Hunter Green
+    icon: '/hero_hunter.jpg',
+    color: 0xaad372,
   },
   {
     id: 'shaman',
@@ -125,6 +129,7 @@ export const INITIAL_UNITS: UnitData[] = [
       damage: 240,
       aoe: true,
     },
-    color: 0x0070de, // Shaman Deep Blue
+    icon: '/hero_shaman.jpg',
+    color: 0x0070de,
   },
 ];

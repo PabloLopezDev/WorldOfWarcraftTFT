@@ -110,7 +110,11 @@ export const Shop: React.FC<ShopProps> = ({
                   background: `radial-gradient(circle at 50% 40%, #${unit.color.toString(16).padStart(6, '0')}44 0%, #0a0e17 80%)`,
                 }}
               >
-                <div className="portrait-icon">{getClassIcon(unit.className)}</div>
+                {unit.icon ? (
+                  <img src={unit.icon} alt={unit.name} className="hero-portrait-img" />
+                ) : (
+                  <div className="portrait-icon">{getClassIcon(unit.className)}</div>
+                )}
               </div>
 
               {/* Card Traits / Synergies */}

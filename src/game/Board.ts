@@ -114,8 +114,8 @@ export class Board {
     g.closePath();
     g.fillPath();
 
-    // Stone Arena Base fill
-    g.fillStyle(0x0b0e15, 0.96);
+    // Stone Arena Base fill (semi-translucent to let artwork stone show through)
+    g.fillStyle(0x080c14, 0.42);
     g.beginPath();
     g.moveTo(pTL.x, pTL.y);
     g.lineTo(pTR.x, pTR.y);
@@ -125,23 +125,10 @@ export class Board {
     g.fillPath();
 
     // Stone Frame Gold / Bronze Trim
-    g.lineStyle(3, 0x4a3b22, 0.95);
+    g.lineStyle(2.5, 0xdfba73, 0.85);
     g.strokePath();
 
-    g.lineStyle(1.5, 0xd4af37, 0.4);
-    const innerTL = this.getGridPoint(-0.02, -0.02);
-    const innerTR = this.getGridPoint(1.02, -0.02);
-    const innerBR = this.getGridPoint(1.02, 1.02);
-    const innerBL = this.getGridPoint(-0.02, 1.02);
-    g.beginPath();
-    g.moveTo(innerTL.x, innerTL.y);
-    g.lineTo(innerTR.x, innerTR.y);
-    g.lineTo(innerBR.x, innerBR.y);
-    g.lineTo(innerBL.x, innerBL.y);
-    g.closePath();
-    g.strokePath();
-
-    // 2. Render all 64 Perspective Tiles
+    // 2. Render all 64 Perspective Tiles with rich translucent ruby and sapphire crystal tints
     for (let row = 0; row < Board.ROWS; row++) {
       const isPlayer = row >= 4;
 
@@ -153,27 +140,19 @@ export class Board {
 
         // Tile body
         if (!isPlayer) {
-          // ENEMY RED STONE SLATE
-          const shade = ((col + row) % 2 === 0) ? 0x2e1318 : 0x250f13;
-          g.fillStyle(shade, 0.92);
+          // ENEMY RED SLATE TINT
+          const alpha = ((col + row) % 2 === 0) ? 0.48 : 0.38;
+          g.fillStyle(0x661622, alpha);
           this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
-          g.lineStyle(1.5, 0x54212a, 0.75);
+          g.lineStyle(1.5, 0xef4444, 0.65);
           this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
-
-          // Subtle stone texture inner inset
-          g.lineStyle(1, 0x3d171d, 0.4);
-          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 4);
         } else {
-          // PLAYER BLUE STONE SLATE
-          const shade = ((col + row) % 2 === 0) ? 0x122033 : 0x0e1929;
-          g.fillStyle(shade, 0.92);
+          // PLAYER BLUE SLATE TINT
+          const alpha = ((col + row) % 2 === 0) ? 0.48 : 0.38;
+          g.fillStyle(0x133866, alpha);
           this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
-          g.lineStyle(1.5, 0x24426b, 0.75);
+          g.lineStyle(1.5, 0x60a5fa, 0.65);
           this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
-
-          // Subtle stone texture inner inset
-          g.lineStyle(1, 0x182d49, 0.4);
-          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 4);
         }
       }
     }
@@ -258,9 +237,9 @@ export class Board {
     const benchW = this.benchWidth;
 
     // Bench Container Frame
-    g.fillStyle(0x0a0e16, 0.94);
+    g.fillStyle(0x0c121d, 0.96);
     g.fillRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
-    g.lineStyle(2, 0x3d301c, 0.85);
+    g.lineStyle(2, 0xdfba73, 0.9);
     g.strokeRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
 
     // Bench Slots
@@ -270,9 +249,9 @@ export class Board {
 
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
       const bx = startX + i * (this.benchSlotW + slotGap);
-      g.fillStyle(0x121822, 0.9);
+      g.fillStyle(0x121a28, 0.95);
       g.fillRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
-      g.lineStyle(1.5, 0x243242, 0.7);
+      g.lineStyle(1.5, 0x3b82f6, 0.75);
       g.strokeRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
     }
 
