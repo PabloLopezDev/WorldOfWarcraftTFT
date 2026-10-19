@@ -823,3 +823,36 @@
   box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
 }
 
+
+/* FLOATING TOAST NOTIFICATION */
+.game-toast-notification {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid #dfba73;
+  color: #f7e098;
+  font-family: var(--font-fantasy);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 12px rgba(223, 186, 115, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  animation: toastFadeIn 0.25s ease-out;
+}
+
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

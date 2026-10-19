@@ -482,4 +482,67 @@ export class Board {
     const tile = this.getTile(col, row);
     return tile ? tile.occupiedBy !== null : true;
   }
+
+  public getTileAtWorld(worldX: number, worldY: number): TacticalTile | null {
+    // 1. Check Bench slots
+    const benchY = this.benchStartY;
+    if (Math.abs(worldY - benchY) <= this.benchSlotH / 2 + 10) {
+      for (const bTile of this.benchTiles) {
+        if (Math.abs(worldX - bTile.centerX) <= this.benchSlotW / 2 + 4) {
+          return bTile;
+        }
+      }
+    }
+
+    // 2. Check Board grid tiles
+    let closestTile: TacticalTile | null = null;
+    let minDistanceSq = 45 * 45;
+
+    for (const tile of this.tiles.values()) {
+      const dx = worldX - tile.centerX;
+      const dy = worldY - tile.centerY;
+      const dSq = dx * dx + dy * dy;
+      if (dSq < minDistanceSq) {
+        minDistanceSq = dSq;
+        closestTile = tile;
+      }
+    }
+
+    return closestTile;
+  }
+
+  public findFirstEmptyBenchSlot(): number {
+    for (let i = 0; i < Board.BENCH_SLOTS; i++) {
+      const tile = this.benchTiles[i];
+      if (tile && tile.occupiedBy === null) {
+        return i;
+      }
+    }
+    return -1; // Bench full
+  }
+
+  public highlightDragTarget(tile: TacticalTile | null, isValid: boolean) {
+    const hg = this.highlightGraphics;
+    hg.clear();
+
+    if (!tile) return;
+
+    const color = isValid ? 0x22c55e : 0xef4444; // Green for valid, Red for invalid
+    if (tile.vertices) {
+      const [tl, tr, br, bl] = tile.vertices;
+      hg.lineStyle(3.5, color, 1);
+      this.strokePerspectiveQuad(hg, tl, tr, br, bl, 1);
+      hg.fillStyle(color, 0.28);
+      this.fillPerspectiveQuad(hg, tl, tr, br, bl, 1);
+    } else {
+      hg.lineStyle(3, color, 1);
+      hg.strokeRoundedRect(tile.centerX - tile.width / 2, tile.centerY - tile.height / 2, tile.width, tile.height, 6);
+      hg.fillStyle(color, 0.22);
+      hg.fillRoundedRect(tile.centerX - tile.width / 2, tile.centerY - tile.height / 2, tile.width, tile.height, 6);
+    }
+  }
+
+  public clearDragHighlight() {
+    this.redrawHighlights();
+  }
 }

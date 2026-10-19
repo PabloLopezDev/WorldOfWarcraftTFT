@@ -13,20 +13,28 @@ interface HUDProps {
 export const HUD: React.FC<HUDProps> = ({ player, onUpdatePlayer }) => {
   const [activeTile, setActiveTile] = useState<BoardTileInfo | null>(null);
   const [shopUnits, setShopUnits] = useState<UnitData[]>(INITIAL_UNITS.slice(0, 5));
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const handleTileHover = (tile: BoardTileInfo) => setActiveTile(tile);
     const handleTileOut = () => {};
     const handleTileSelected = (tile: BoardTileInfo) => setActiveTile(tile);
 
+    const handleNotification = (msg: string) => {
+      setNotification(msg);
+      setTimeout(() => setNotification(null), 2500);
+    };
+
     EventBus.on('tile-hover', handleTileHover);
     EventBus.on('tile-out', handleTileOut);
     EventBus.on('tile-selected', handleTileSelected);
+    EventBus.on('game-notification', handleNotification);
 
     return () => {
       EventBus.off('tile-hover', handleTileHover);
       EventBus.off('tile-out', handleTileOut);
       EventBus.off('tile-selected', handleTileSelected);
+      EventBus.off('game-notification', handleNotification);
     };
   }, []);
 
@@ -101,6 +109,14 @@ export const HUD: React.FC<HUDProps> = ({ player, onUpdatePlayer }) => {
           </button>
         </div>
       </header>
+
+      {/* FLOATING TOAST NOTIFICATION */}
+      {notification && (
+        <div className="game-toast-notification">
+          <span>⚠️</span>
+          <span>{notification}</span>
+        </div>
+      )}
 
       {/* 2. LEFT PANEL: SYNERGIES */}
       <aside className="hud-left-synergies">

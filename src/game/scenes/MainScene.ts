@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus';
 import { Board } from '../Board';
+import { UnitManager } from '../../systems/UnitManager';
+import { INITIAL_UNITS } from '../../data/units';
 
 export class MainScene extends Phaser.Scene {
   public board!: Board;
+  public unitManager!: UnitManager;
   private bgImage!: Phaser.GameObjects.Image;
 
   constructor() {
@@ -12,6 +15,11 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     this.load.image('arena_background', '/arena_background.jpg');
+    this.load.image('hero_warrior', '/hero_warrior.jpg');
+    this.load.image('hero_paladin', '/hero_paladin.jpg');
+    this.load.image('hero_mage', '/hero_mage.jpg');
+    this.load.image('hero_hunter', '/hero_hunter.jpg');
+    this.load.image('hero_shaman', '/hero_shaman.jpg');
   }
 
   create() {
@@ -23,7 +31,6 @@ export class MainScene extends Phaser.Scene {
       this.bgImage.setOrigin(0.5);
       this.updateBackgroundScale(width, height);
     } else {
-      // Fallback dark gradient if loading
       const g = this.add.graphics();
       g.fillGradientStyle(0x1e2f47, 0x223755, 0x0a0e17, 0x070a10, 1);
       g.fillRect(0, 0, width, height);
@@ -35,8 +42,17 @@ export class MainScene extends Phaser.Scene {
     vignette.fillRect(0, 0, width, height);
     vignette.setDepth(1);
 
-    // 3. Tactical 2.5D Board & Bench with perspective alignment
+    // 3. Tactical 2.5D Board & Bench
     this.board = new Board(this);
+
+    // 4. Unit Management System (Spawning, Drag & Drop, Swapping)
+    this.unitManager = new UnitManager(this, this.board);
+
+    // Spawn 1 Starter Warrior on bench for immediate testing
+    const starterWarrior = INITIAL_UNITS.find((u) => u.id === 'warrior');
+    if (starterWarrior) {
+      this.unitManager.spawnUnitOnBench(starterWarrior);
+    }
 
     // Window resize handler
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
