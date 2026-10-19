@@ -155,12 +155,6 @@ export const Shop: React.FC<ShopProps> = ({
           <span className="cost-tag">🪙 4</span>
         </button>
       </div>
-
-      {/* FAR RIGHT: DPS METER PLACEHOLDER */}
-      <div className="shop-dps-meter">
-        <div className="dps-header">⚔️ Daño infligido</div>
-        <div className="dps-empty">--</div>
-      </div>
     </div>
   );
 };

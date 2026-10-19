@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { PlayerState, BoardTileInfo, UnitData } from '../types';
 import { EventBus } from '../game/EventBus';
 import { Shop } from './Shop';
+import { DPSMeter } from './DPSMeter';
 import { INITIAL_UNITS } from '../data/units';
 
 interface HUDProps {
@@ -186,7 +187,10 @@ export const HUD: React.FC<HUDProps> = ({ player, onUpdatePlayer }) => {
         )}
       </aside>
 
-      {/* 4. BOTTOM BAR: SHOP */}
+      {/* 4. TFT-STYLE SLIDING COMBAT METRICS DRAWER */}
+      <DPSMeter />
+
+      {/* 5. BOTTOM BAR: SHOP */}
       <footer className="hud-bottom-shop-bar">
         <Shop
           units={shopUnits}

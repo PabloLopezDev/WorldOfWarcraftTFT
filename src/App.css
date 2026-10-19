@@ -578,19 +578,248 @@
   cursor: not-allowed;
 }
 
-/* DPS Meter */
-.shop-dps-meter {
-  width: 90px;
-  border-left: 1px solid #243042;
-  padding-left: 8px;
+/* ===================================================
+   TFT-STYLE SLIDING COMBAT METRICS DRAWER (RIGHT SIDE)
+   =================================================== */
+
+.dps-meter-drawer {
+  position: absolute;
+  right: 0;
+  bottom: 165px;
+  width: 250px;
+  z-index: 30;
+  display: flex;
+  pointer-events: auto;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dps-meter-drawer.closed {
+  transform: translateX(250px);
+}
+
+.dps-meter-drawer.open {
+  transform: translateX(0);
+}
+
+/* Tab button attached to the left of the drawer */
+.dps-drawer-toggle-btn {
+  position: absolute;
+  left: -40px;
+  top: 14px;
+  width: 40px;
+  height: 90px;
+  background: linear-gradient(180deg, #162438 0%, #0d1624 100%);
+  border: 1.5px solid #dfba73;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: #dfba73;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+  box-shadow: -4px 4px 14px rgba(0, 0, 0, 0.7);
+  transition: all 0.2s ease;
+}
+
+.dps-drawer-toggle-btn:hover {
+  background: linear-gradient(180deg, #1e3553 0%, #122035 100%);
+  color: #fff;
+  border-color: #f7e098;
+  box-shadow: -6px 4px 18px rgba(223, 186, 115, 0.35);
+}
+
+.toggle-icon {
+  font-size: 11px;
+}
+
+.toggle-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--font-fantasy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Drawer Body */
+.dps-drawer-body {
+  width: 250px;
+  background: rgba(10, 14, 22, 0.96);
+  border: 1.5px solid #5a4224;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  padding: 10px 12px;
+  box-shadow: -6px 6px 25px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+}
+
+.dps-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(223, 186, 115, 0.25);
+  padding-bottom: 8px;
+}
+
+.dps-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.dps-tab {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #94a3b8;
   font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dps-tab:hover {
+  color: #fff;
+  border-color: #64748b;
+}
+
+.dps-tab.active {
+  background: rgba(223, 186, 115, 0.16);
+  border-color: #dfba73;
+  color: #f7e098;
+}
+
+.dps-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+
+.dps-close-btn:hover {
+  color: #fff;
+}
+
+/* Metrics list */
+.dps-units-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.dps-empty-state {
+  text-align: center;
+  padding: 24px 10px;
   color: #64748b;
 }
 
-.dps-header {
+.dps-empty-state .empty-icon {
+  font-size: 26px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.dps-empty-state p {
+  font-family: var(--font-fantasy);
+  font-size: 0.82rem;
   font-weight: 700;
+  color: #cbd5e1;
   margin-bottom: 4px;
 }
+
+.dps-empty-state small {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  display: block;
+}
+
+/* Individual unit row */
+.dps-unit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dps-unit-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #475569;
+  flex-shrink: 0;
+}
+
+.dps-unit-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dps-unit-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dps-unit-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.dps-unit-info .unit-name {
+  color: #e2e8f0;
+}
+
+.dps-unit-info .unit-val {
+  color: #dfba73;
+}
+
+.dps-progress-track {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dps-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.dps-progress-fill.damage {
+  background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.dps-progress-fill.healing {
+  background: linear-gradient(90deg, #10b981 0%, #047857 100%);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.dps-progress-fill.shield {
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+
