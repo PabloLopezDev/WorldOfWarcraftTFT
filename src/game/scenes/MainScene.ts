@@ -12,14 +12,19 @@ export class MainScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // 1. Sky & Floating Island Environment
+    // 1. Lush Fantasy Floating Citadel Environment
     this.createEnvironment(width, height);
 
-    // 2. Pillars, Banners and Braziers (Left & Right)
-    this.createArenaDecorations(width);
+    // 2. Pillars, Torches and Banners
+    this.createArenaArchitecture(width);
 
-    // 3. Tactical Board (8x8 + Bench)
+    // 3. Tactical 2.5D Board & Bench
     this.board = new Board(this);
+
+    // Listen to window resize to adjust responsive layout
+    this.scale.on('resize', () => {
+      // Clean reload on major resize if needed
+    });
 
     // Notify React
     EventBus.emit('current-scene-ready', this);
@@ -29,124 +34,180 @@ export class MainScene extends Phaser.Scene {
   private createEnvironment(width: number, height: number) {
     const g = this.add.graphics();
 
-    // Sky gradient (dusk fantasy clouds)
-    g.fillGradientStyle(0x1a2638, 0x1a2638, 0x080a10, 0x080a10, 1);
+    // 1. Sky Gradient: Soft mystical dusk (deep twilight blue to warm horizon)
+    g.fillGradientStyle(0x1e2f47, 0x223755, 0x0a0e17, 0x070a10, 1);
     g.fillRect(0, 0, width, height);
 
-    // Distant floating island silhouettes in the background
-    g.fillStyle(0x0e141f, 0.6);
-    // Far left citadel silhouette
+    // 2. Soft Ambient Sky Clouds (Mist drifting)
+    g.fillStyle(0x334a6d, 0.15);
+    g.fillCircle(width * 0.2, 140, 220);
+    g.fillCircle(width * 0.8, 120, 250);
+    g.fillCircle(width * 0.5, 80, 180);
+
+    // 3. Distant Floating Islands (Dalaran / Nagrand floating rocks)
+    // Left distant floating island with green moss
+    this.createFloatingIsland(g, 100, 220, 180, 120, 0x182433, 0x2e4a2a);
+    // Right distant floating island with stone spires
+    this.createFloatingIsland(g, width - 110, 240, 200, 130, 0x16202e, 0x243e22);
+
+    // 4. Midground Citadel Walls (Stone Bastion Terrace Base)
+    g.fillStyle(0x0a0e16, 0.98);
+    g.fillRoundedRect(width * 0.1, 80, width * 0.8, height - 160, 24);
+    g.lineStyle(2, 0x2c3b4f, 0.5);
+    g.strokeRoundedRect(width * 0.1, 80, width * 0.8, height - 160, 24);
+
+    // Lush Green Foliage & Vines along the fortress ramparts (matching reference image)
+    this.createFoliageAccents(g, width);
+  }
+
+  private createFloatingIsland(
+    g: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    w: number,
+    h: number,
+    stoneColor: number,
+    grassColor: number
+  ) {
+    // Rocky bottom tapering downward
+    g.fillStyle(stoneColor, 0.9);
     g.beginPath();
-    g.moveTo(40, 260);
-    g.lineTo(120, 200);
-    g.lineTo(160, 220);
-    g.lineTo(240, 280);
-    g.lineTo(180, 360);
-    g.lineTo(60, 340);
+    g.moveTo(cx - w / 2, cy);
+    g.lineTo(cx - w * 0.3, cy + h * 0.8);
+    g.lineTo(cx, cy + h);
+    g.lineTo(cx + w * 0.25, cy + h * 0.7);
+    g.lineTo(cx + w / 2, cy);
     g.closePath();
     g.fillPath();
 
-    // Far right castle spire
+    // Top lush green grass layer
+    g.fillStyle(grassColor, 0.95);
     g.beginPath();
-    g.moveTo(width - 240, 280);
-    g.lineTo(width - 180, 180);
-    g.lineTo(width - 160, 180);
-    g.lineTo(width - 110, 270);
-    g.lineTo(width - 50, 350);
-    g.lineTo(width - 220, 360);
+    g.moveTo(cx - w / 2 - 8, cy);
+    g.lineTo(cx - w * 0.2, cy - 14);
+    g.lineTo(cx + w * 0.2, cy - 12);
+    g.lineTo(cx + w / 2 + 8, cy);
+    g.lineTo(cx + w * 0.3, cy + 8);
+    g.lineTo(cx - w * 0.3, cy + 10);
     g.closePath();
     g.fillPath();
   }
 
-  private createArenaDecorations(width: number) {
-    const g = this.add.graphics();
+  private createFoliageAccents(g: Phaser.GameObjects.Graphics, width: number) {
+    // Left terrace ivy & pine branches
+    g.fillStyle(0x1e3a1e, 0.8);
+    g.fillCircle(width * 0.12, 180, 24);
+    g.fillCircle(width * 0.11, 220, 28);
+    g.fillCircle(width * 0.13, 270, 32);
+
+    g.fillStyle(0x2d5a2d, 0.85);
+    g.fillCircle(width * 0.12, 175, 16);
+    g.fillCircle(width * 0.11, 215, 20);
+    g.fillCircle(width * 0.13, 265, 22);
+
+    // Right terrace ivy & foliage
+    g.fillStyle(0x1e3a1e, 0.8);
+    g.fillCircle(width * 0.88, 190, 26);
+    g.fillCircle(width * 0.89, 235, 30);
+    g.fillCircle(width * 0.87, 280, 34);
+
+    g.fillStyle(0x2d5a2d, 0.85);
+    g.fillCircle(width * 0.88, 185, 18);
+    g.fillCircle(width * 0.89, 230, 22);
+    g.fillCircle(width * 0.87, 275, 24);
+  }
+
+  private createArenaArchitecture(width: number) {
     const centerX = width / 2;
-    const boardTotalW = Board.COLS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
+    const arenaW = 900;
+    const leftColX = centerX - arenaW / 2 - 35;
+    const rightColX = centerX + arenaW / 2 + 35;
+    const pillarY = 220;
+    const pillarH = 360;
 
-    const leftColX = centerX - boardTotalW / 2 - 70;
-    const rightColX = centerX + boardTotalW / 2 + 70;
+    const g = this.add.graphics();
 
-    // Stone Pillars Left & Right
-    const pillarY = 260;
-    const pillarH = 340;
-
+    // 1. Carved Bastion Columns
     // Left Pillar
-    g.fillStyle(0x151b24, 0.95);
-    g.fillRoundedRect(leftColX - 25, pillarY, 50, pillarH, 8);
-    g.lineStyle(2, 0x3b311e, 0.85);
-    g.strokeRoundedRect(leftColX - 25, pillarY, 50, pillarH, 8);
+    g.fillStyle(0x141b25, 0.98);
+    g.fillRoundedRect(leftColX - 24, pillarY, 48, pillarH, 8);
+    g.lineStyle(2, 0x4a3a22, 0.9);
+    g.strokeRoundedRect(leftColX - 24, pillarY, 48, pillarH, 8);
 
     // Right Pillar
-    g.fillStyle(0x151b24, 0.95);
-    g.fillRoundedRect(rightColX - 25, pillarY, 50, pillarH, 8);
-    g.lineStyle(2, 0x3b311e, 0.85);
-    g.strokeRoundedRect(rightColX - 25, pillarY, 50, pillarH, 8);
+    g.fillStyle(0x141b25, 0.98);
+    g.fillRoundedRect(rightColX - 24, pillarY, 48, pillarH, 8);
+    g.lineStyle(2, 0x4a3a22, 0.9);
+    g.strokeRoundedRect(rightColX - 24, pillarY, 48, pillarH, 8);
 
-    // Alliance Banners (Hanging on pillars)
-    this.createBanner(leftColX, pillarY + 60, true);
-    this.createBanner(rightColX, pillarY + 60, false);
+    // 2. Hanging Alliance Banners (with golden lion emblem)
+    this.createAllianceBanner(leftColX, pillarY + 50);
+    this.createAllianceBanner(rightColX, pillarY + 50);
 
-    // Fire Braziers / Torches atop the stone columns
-    this.createBrazier(leftColX, pillarY - 10);
-    this.createBrazier(rightColX, pillarY - 10);
+    // 3. Fire Braziers (Burning torches with flickering light)
+    this.createFireBrazier(leftColX, pillarY - 14);
+    this.createFireBrazier(rightColX, pillarY - 14);
   }
 
-  private createBanner(x: number, y: number, _isLeft: boolean) {
-    const banner = this.add.graphics();
-    const bannerW = 32;
-    const bannerH = 90;
+  private createAllianceBanner(x: number, y: number) {
+    const b = this.add.graphics();
+    const w = 34;
+    const h = 105;
 
-    // Blue Alliance fabric
-    banner.fillStyle(0x16345c, 0.9);
-    banner.beginPath();
-    banner.moveTo(x - bannerW / 2, y);
-    banner.lineTo(x + bannerW / 2, y);
-    banner.lineTo(x + bannerW / 2, y + bannerH - 12);
-    banner.lineTo(x, y + bannerH);
-    banner.lineTo(x - bannerW / 2, y + bannerH - 12);
-    banner.closePath();
-    banner.fillPath();
+    // Blue velvet banner cloth
+    b.fillStyle(0x163763, 0.95);
+    b.beginPath();
+    b.moveTo(x - w / 2, y);
+    b.lineTo(x + w / 2, y);
+    b.lineTo(x + w / 2, y + h - 14);
+    b.lineTo(x, y + h);
+    b.lineTo(x - w / 2, y + h - 14);
+    b.closePath();
+    b.fillPath();
 
-    // Gold trim
-    banner.lineStyle(2, 0xdfba73, 0.8);
-    banner.strokePath();
+    // Gold braided fringe border
+    b.lineStyle(2, 0xdfba73, 0.9);
+    b.strokePath();
 
-    // Little Lion symbol in gold
-    banner.fillStyle(0xdfba73, 0.9);
-    banner.fillCircle(x, y + 26, 7);
+    // Golden Lion Medallion
+    b.fillStyle(0xdfba73, 0.95);
+    b.fillCircle(x, y + 28, 8);
+    b.lineStyle(1.5, 0x78561f, 0.8);
+    b.strokeCircle(x, y + 28, 8);
   }
 
-  private createBrazier(x: number, y: number) {
+  private createFireBrazier(x: number, y: number) {
     const g = this.add.graphics();
 
-    // Golden / Bronze cauldron
-    g.fillStyle(0x382813, 1);
-    g.fillRoundedRect(x - 18, y, 36, 14, 4);
-    g.lineStyle(2, 0xdfba73, 0.9);
-    g.strokeRoundedRect(x - 18, y, 36, 14, 4);
+    // Stone / Iron Cauldron
+    g.fillStyle(0x2a1c12, 1);
+    g.fillRoundedRect(x - 20, y, 40, 16, 5);
+    g.lineStyle(2, 0xdfba73, 0.95);
+    g.strokeRoundedRect(x - 20, y, 40, 16, 5);
 
-    // Inner glowing coals
-    g.fillStyle(0xe65100, 1);
-    g.fillCircle(x, y + 2, 10);
+    // Burning glowing coals
+    g.fillStyle(0xd9480f, 1);
+    g.fillCircle(x, y + 3, 11);
 
-    // Animated flame core with pulsing light
-    const flameGlow = this.add.circle(x, y - 6, 14, 0xffa000, 0.45);
+    // Dynamic fire light aura illuminating surrounding stone
+    const fireAura = this.add.circle(x, y - 10, 36, 0xff922b, 0.22);
     this.tweens.add({
-      targets: flameGlow,
-      alpha: 0.15,
-      scaleX: 1.3,
-      scaleY: 1.4,
-      y: y - 10,
-      duration: 600 + Math.random() * 300,
+      targets: fireAura,
+      alpha: 0.08,
+      scale: 1.35,
+      duration: 700 + Math.random() * 300,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    const firePoint = this.add.circle(x, y - 4, 7, 0xffeb3b, 0.8);
+    // Flickering Flame Core
+    const flameCore = this.add.circle(x, y - 6, 9, 0xffd43b, 0.9);
     this.tweens.add({
-      targets: firePoint,
-      scale: 0.7,
+      targets: flameCore,
+      scaleX: 0.75,
+      scaleY: 1.25,
+      y: y - 10,
       duration: 350 + Math.random() * 200,
       yoyo: true,
       repeat: -1,

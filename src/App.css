@@ -8,30 +8,23 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #05070a;
+  background-color: #070a10;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* FULLSCREEN PHASER ENGINE CANVAS */
+/* FULLSCREEN PHASER ENGINE CANVAS (NO LETTERBOX) */
 .phaser-canvas-container {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .phaser-canvas-container canvas {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  box-shadow: 0 0 35px rgba(0, 0, 0, 0.95);
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* REACT HUD OVERLAY LAYER */
@@ -45,13 +38,17 @@
   justify-content: space-between;
 }
 
-/* 1. TOP BAR */
+/* 1. TOP BAR (FULL WIDTH METALLIC WoW BANNER) */
 .hud-top-bar-ref {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 24px;
-  height: 58px;
+  padding: 0 24px;
+  height: 52px;
+  background: linear-gradient(180deg, rgba(16, 23, 34, 0.96) 0%, rgba(9, 13, 20, 0.94) 100%);
+  border-bottom: 2px solid #5a4224;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
 }
 
 .top-left-group {
@@ -62,80 +59,80 @@
 }
 
 .alliance-shield-badge {
-  width: 44px;
-  height: 48px;
-  background: linear-gradient(180deg, #163660 0%, #0a1728 100%);
+  width: 38px;
+  height: 42px;
+  background: linear-gradient(180deg, #1b457b 0%, #0c1a2e 100%);
   border: 2px solid #dfba73;
   clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8), 0 0 10px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 0 0 12px rgba(96, 165, 250, 0.5);
 }
 
 .crest-lion {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .player-hp-pill {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(14, 18, 27, 0.92);
+  background: rgba(14, 18, 27, 0.9);
   border: 1px solid #4a3622;
   border-left: 3px solid #e53e3e;
-  padding: 6px 16px;
+  padding: 4px 14px;
   border-radius: 4px;
   font-family: var(--font-fantasy);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   color: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .hp-heart {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .top-center-pill {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: rgba(11, 15, 24, 0.94);
-  border: 1px solid #9e7f3b;
+  background: rgba(10, 14, 22, 0.95);
+  border: 1px solid #825f23;
   border-radius: 6px;
-  padding: 6px 24px;
+  padding: 5px 22px;
   pointer-events: auto;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(223, 186, 115, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(223, 186, 115, 0.12);
 }
 
 .stage-round {
   font-family: var(--font-fantasy);
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: #f7e098;
   letter-spacing: 1px;
 }
 
 .swords-icon {
-  font-size: 16px;
+  font-size: 15px;
   color: #dfba73;
 }
 
 .gold-pill {
   font-family: var(--font-fantasy);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #dfba73;
 }
 
 .level-pill {
   font-family: var(--font-sans);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #60a5fa;
   background: rgba(96, 165, 250, 0.12);
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid rgba(96, 165, 250, 0.3);
 }
@@ -143,7 +140,7 @@
 .settings-btn {
   background: transparent;
   border: none;
-  font-size: 17px;
+  font-size: 16px;
   color: #9ba1b0;
   cursor: pointer;
   transition: color 0.2s;
@@ -161,38 +158,38 @@
   background: rgba(223, 186, 115, 0.1);
   border: 1px solid #825f23;
   color: #f7e098;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .gold-hud-btn:hover {
-  background: rgba(223, 186, 115, 0.2);
+  background: rgba(223, 186, 115, 0.25);
 }
 
 /* 2. LEFT PANEL: SYNERGIES */
 .hud-left-synergies {
   position: absolute;
-  top: 76px;
+  top: 66px;
   left: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: auto;
-  width: 170px;
+  width: 165px;
 }
 
 .synergy-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(11, 15, 24, 0.9);
+  background: rgba(11, 15, 24, 0.92);
   border: 1px solid #2a3a4f;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(6px);
 }
 
@@ -204,7 +201,6 @@
   justify-content: center;
   border-radius: 4px;
   font-size: 15px;
-  background: rgba(255, 255, 255, 0.05);
 }
 
 .synergy-icon.alliance {
@@ -227,7 +223,7 @@
 }
 
 .synergy-title {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #e2e8f0;
 }
@@ -236,7 +232,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .active-tier {
@@ -251,7 +247,7 @@
 /* 3. RIGHT PANEL: PLAYERS */
 .hud-right-players {
   position: absolute;
-  top: 76px;
+  top: 66px;
   right: 20px;
   display: flex;
   flex-direction: column;
@@ -264,30 +260,30 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(11, 15, 24, 0.9);
+  background: rgba(11, 15, 24, 0.92);
   border: 1px solid #243042;
   border-radius: 6px;
-  padding: 6px 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  padding: 5px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(6px);
 }
 
 .player-score-card.active-user {
-  background: linear-gradient(90deg, rgba(27, 99, 185, 0.35) 0%, rgba(14, 25, 45, 0.9) 100%);
+  background: linear-gradient(90deg, rgba(27, 99, 185, 0.35) 0%, rgba(14, 25, 45, 0.92) 100%);
   border: 1.5px solid #3b82f6;
   box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
 }
 
 .player-avatar-ring {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #1e293b;
   border: 1.5px solid #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .player-meta {
@@ -298,13 +294,13 @@
 }
 
 .player-name {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #e2e8f0;
 }
 
 .player-health {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #ff8787;
 }
@@ -333,7 +329,7 @@
 
 /* 4. BOTTOM BAR: SHOP */
 .hud-bottom-shop-bar {
-  padding: 0 20px 14px 20px;
+  padding: 0 20px 10px 20px;
   display: flex;
   justify-content: center;
   pointer-events: auto;
@@ -343,11 +339,11 @@
   display: flex;
   align-items: stretch;
   gap: 12px;
-  background: rgba(10, 14, 22, 0.96);
+  background: rgba(9, 13, 20, 0.96);
   border: 1.5px solid #5a4224;
   border-radius: 8px;
-  padding: 10px 14px;
-  box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.85), inset 0 0 15px rgba(223, 186, 115, 0.08);
+  padding: 8px 12px;
+  box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(223, 186, 115, 0.08);
   backdrop-filter: blur(10px);
 }
 
@@ -356,12 +352,12 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 105px;
+  width: 100px;
 }
 
 .shop-label {
   font-family: var(--font-fantasy);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #dfba73;
   display: flex;
@@ -374,7 +370,7 @@
   border: 1px solid #38bdf8;
   border-radius: 6px;
   color: #fff;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -395,32 +391,32 @@
 }
 
 .reroll-icon {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .reroll-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .cost-tag {
   color: #dfba73;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 /* Shop Cards Deck */
 .shop-cards-deck {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .shop-unit-card {
-  width: 145px;
-  height: 125px;
-  background: #0f141f;
+  width: 135px;
+  height: 115px;
+  background: #0d121c;
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -471,7 +467,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -485,7 +481,7 @@
 }
 
 .card-portrait {
-  height: 48px;
+  height: 44px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -494,7 +490,7 @@
 }
 
 .portrait-icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .card-traits {
@@ -507,7 +503,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: #94a3b8;
 }
 
@@ -516,14 +512,14 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 110px;
+  width: 105px;
 }
 
 .shop-economy-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.82rem;
+  gap: 3px;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -546,12 +542,12 @@
   border: 1px solid #3b82f6;
   border-radius: 6px;
   color: #fff;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -570,13 +566,13 @@
 
 /* DPS Meter */
 .shop-dps-meter {
-  width: 95px;
+  width: 90px;
   border-left: 1px solid #243042;
-  padding-left: 10px;
+  padding-left: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: #64748b;
 }
 

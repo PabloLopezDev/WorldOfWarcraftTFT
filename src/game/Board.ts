@@ -2,14 +2,20 @@ import Phaser from 'phaser';
 import type { BoardTileInfo, TileZone } from '../types';
 import { EventBus } from './EventBus';
 
+export interface PerspectiveVertex {
+  x: number;
+  y: number;
+}
+
 export interface TacticalTile {
   col: number;
   row: number;
   zone: TileZone;
   isBench: boolean;
   benchIndex?: number;
-  x: number;
-  y: number;
+  centerX: number;
+  centerY: number;
+  vertices?: [PerspectiveVertex, PerspectiveVertex, PerspectiveVertex, PerspectiveVertex]; // TL, TR, BR, BL
   width: number;
   height: number;
   occupiedBy: string | null;
@@ -21,175 +27,286 @@ export class Board {
   public static readonly ROWS = 8; // 0..3: Enemy (Red), 4..7: Player (Blue)
   public static readonly BENCH_SLOTS = 8;
 
-  // Board geometry on 1920x1080 canvas
-  public static readonly TILE_W = 100;
-  public static readonly TILE_H = 62;
-  public static readonly TILE_GAP = 6;
-
   private scene: Phaser.Scene;
   private tiles: Map<string, TacticalTile> = new Map();
   private benchTiles: TacticalTile[] = [];
 
-  // Graphics layers for ultra-smooth 60fps performance
+  // Graphics layers
   private boardGraphics!: Phaser.GameObjects.Graphics;
   private highlightGraphics!: Phaser.GameObjects.Graphics;
 
   private activeHoverKey: string | null = null;
   private selectedKey: string | null = null;
 
-  // Origins
-  private startX = 0;
-  private startY = 0;
-  private benchStartX = 0;
+  // Dynamic layout values
+  private centerX = 0;
+  private boardStartY = 0;
+  private boardHeight = 360;
+  private topWidth = 680;
+  private bottomWidth = 860;
+
   private benchStartY = 0;
+  private benchWidth = 840;
+  private benchSlotW = 96;
+  private benchSlotH = 56;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.calculateLayout();
-    this.createStaticLayers();
-    this.createTacticalTiles();
+    this.createStaticBoard();
+    this.createBench();
+    this.createInteractiveZones();
   }
 
   private calculateLayout() {
-    const totalW = Board.COLS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
-    this.startX = (1920 - totalW) / 2 + Board.TILE_W / 2;
-    this.startY = 140; // Fits perfectly below top HUD
+    const { width, height } = this.scene.scale;
+    this.centerX = width / 2;
 
-    // Bench positioned right under the board
-    const benchTotalW = Board.BENCH_SLOTS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
-    this.benchStartX = (1920 - benchTotalW) / 2 + Board.TILE_W / 2;
-    this.benchStartY = this.startY + Board.ROWS * (Board.TILE_H + Board.TILE_GAP) + 36;
+    // Center board vertically between top bar (~60px) and bottom shop (~160px)
+    const availableH = height - 220;
+    this.boardHeight = Math.min(Math.max(availableH * 0.65, 300), 400);
+
+    // Responsive widths
+    const maxAllowedW = Math.min(width - 340, 920);
+    this.bottomWidth = Math.max(maxAllowedW, 680);
+    this.topWidth = this.bottomWidth * 0.8;
+
+    this.boardStartY = 75 + (availableH - this.boardHeight - 80) / 2;
+    this.benchStartY = this.boardStartY + this.boardHeight + 38;
+
+    this.benchWidth = this.bottomWidth;
+    this.benchSlotW = (this.benchWidth - 7 * 6) / 8;
+    this.benchSlotH = Math.min(this.boardHeight * 0.16, 56);
   }
 
-  private createStaticLayers() {
+  // Calculate 2.5D perspective grid intersection
+  private getGridPoint(colFrac: number, rowFrac: number): PerspectiveVertex {
+    // Non-linear depth spacing for natural foreshortening
+    const depthT = rowFrac * 0.72 + (rowFrac * rowFrac) * 0.28;
+    const y = this.boardStartY + depthT * this.boardHeight;
+    const currentW = this.topWidth + depthT * (this.bottomWidth - this.topWidth);
+    const x = this.centerX - currentW / 2 + colFrac * currentW;
+    return { x, y };
+  }
+
+  private createStaticBoard() {
     this.boardGraphics = this.scene.add.graphics();
     this.highlightGraphics = this.scene.add.graphics();
-    this.highlightGraphics.setDepth(5);
-
-    const totalW = Board.COLS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
-    const totalH = Board.ROWS * (Board.TILE_H + Board.TILE_GAP) - Board.TILE_GAP;
-    const centerX = 1920 / 2;
-    const centerY = this.startY + totalH / 2 - Board.TILE_H / 2;
+    this.highlightGraphics.setDepth(10);
 
     const g = this.boardGraphics;
+    g.clear();
 
-    // 1. Bastion Stone Platform Base
-    g.fillStyle(0x0c0f17, 0.95);
-    g.fillRoundedRect(centerX - totalW / 2 - 24, centerY - totalH / 2 - 20, totalW + 48, totalH + 40, 12);
-    g.lineStyle(3, 0x4a3a22, 0.9);
-    g.strokeRoundedRect(centerX - totalW / 2 - 24, centerY - totalH / 2 - 20, totalW + 48, totalH + 40, 12);
+    // 1. Bastion Stone Arena Base (Trapezoid with 3D depth bevel)
+    const pTL = this.getGridPoint(-0.04, -0.04);
+    const pTR = this.getGridPoint(1.04, -0.04);
+    const pBR = this.getGridPoint(1.04, 1.04);
+    const pBL = this.getGridPoint(-0.04, 1.04);
 
-    // Subtle inner gold rim
-    g.lineStyle(1, 0x9e7f3b, 0.4);
-    g.strokeRoundedRect(centerX - totalW / 2 - 21, centerY - totalH / 2 - 17, totalW + 42, totalH + 34, 10);
+    // Stone rim drop shadow / 3D front edge
+    const bevelDepth = 14;
+    g.fillStyle(0x06080d, 0.95);
+    g.beginPath();
+    g.moveTo(pBL.x, pBL.y);
+    g.lineTo(pBR.x, pBR.y);
+    g.lineTo(pBR.x, pBR.y + bevelDepth);
+    g.lineTo(pBL.x, pBL.y + bevelDepth);
+    g.closePath();
+    g.fillPath();
 
-    // 2. Render all 64 Tiles in single batch
+    // Stone Arena Base fill
+    g.fillStyle(0x0b0e15, 0.96);
+    g.beginPath();
+    g.moveTo(pTL.x, pTL.y);
+    g.lineTo(pTR.x, pTR.y);
+    g.lineTo(pBR.x, pBR.y);
+    g.lineTo(pBL.x, pBL.y);
+    g.closePath();
+    g.fillPath();
+
+    // Stone Frame Gold / Bronze Trim
+    g.lineStyle(3, 0x4a3b22, 0.95);
+    g.strokePath();
+
+    g.lineStyle(1.5, 0xd4af37, 0.4);
+    const innerTL = this.getGridPoint(-0.02, -0.02);
+    const innerTR = this.getGridPoint(1.02, -0.02);
+    const innerBR = this.getGridPoint(1.02, 1.02);
+    const innerBL = this.getGridPoint(-0.02, 1.02);
+    g.beginPath();
+    g.moveTo(innerTL.x, innerTL.y);
+    g.lineTo(innerTR.x, innerTR.y);
+    g.lineTo(innerBR.x, innerBR.y);
+    g.lineTo(innerBL.x, innerBL.y);
+    g.closePath();
+    g.strokePath();
+
+    // 2. Render all 64 Perspective Tiles
     for (let row = 0; row < Board.ROWS; row++) {
       const isPlayer = row >= 4;
-      const y = this.startY + row * (Board.TILE_H + Board.TILE_GAP);
 
       for (let col = 0; col < Board.COLS; col++) {
-        const x = this.startX + col * (Board.TILE_W + Board.TILE_GAP);
+        const cTL = this.getGridPoint(col / Board.COLS, row / Board.ROWS);
+        const cTR = this.getGridPoint((col + 1) / Board.COLS, row / Board.ROWS);
+        const cBR = this.getGridPoint((col + 1) / Board.COLS, (row + 1) / Board.ROWS);
+        const cBL = this.getGridPoint(col / Board.COLS, (row + 1) / Board.ROWS);
 
+        // Tile body
         if (!isPlayer) {
-          // ENEMY RED SLATE TILE
-          g.fillStyle(0x281216, 0.88);
-          g.fillRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
-          g.lineStyle(1.5, 0x5a232b, 0.7);
-          g.strokeRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
-          // Red stone texture accents
-          g.lineStyle(1, 0x3d171d, 0.5);
-          g.strokeRect(x - Board.TILE_W / 2 + 3, y - Board.TILE_H / 2 + 3, Board.TILE_W - 6, Board.TILE_H - 6);
+          // ENEMY RED STONE SLATE
+          const shade = ((col + row) % 2 === 0) ? 0x2e1318 : 0x250f13;
+          g.fillStyle(shade, 0.92);
+          this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
+          g.lineStyle(1.5, 0x54212a, 0.75);
+          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
+
+          // Subtle stone texture inner inset
+          g.lineStyle(1, 0x3d171d, 0.4);
+          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 4);
         } else {
-          // PLAYER BLUE SLATE TILE
-          g.fillStyle(0x111c2e, 0.88);
-          g.fillRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
-          g.lineStyle(1.5, 0x243e69, 0.7);
-          g.strokeRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
-          // Blue stone texture accents
-          g.lineStyle(1, 0x182a47, 0.5);
-          g.strokeRect(x - Board.TILE_W / 2 + 3, y - Board.TILE_H / 2 + 3, Board.TILE_W - 6, Board.TILE_H - 6);
+          // PLAYER BLUE STONE SLATE
+          const shade = ((col + row) % 2 === 0) ? 0x122033 : 0x0e1929;
+          g.fillStyle(shade, 0.92);
+          this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
+          g.lineStyle(1.5, 0x24426b, 0.75);
+          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
+
+          // Subtle stone texture inner inset
+          g.lineStyle(1, 0x182d49, 0.4);
+          this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 4);
         }
       }
     }
 
     // 3. Central Divide & Alliance Crest Watermark
-    const dividerY = this.startY + 4 * (Board.TILE_H + Board.TILE_GAP) - Board.TILE_GAP / 2 - Board.TILE_H / 2;
+    const divLeft = this.getGridPoint(0, 0.5);
+    const divRight = this.getGridPoint(1, 0.5);
 
-    // Glowing border divider
-    g.lineStyle(3, 0xdfba73, 0.75);
-    g.lineBetween(centerX - totalW / 2, dividerY, centerX + totalW / 2, dividerY);
+    // Glowing Divider Beam
+    g.lineStyle(4, 0xdfba73, 0.4);
+    g.lineBetween(divLeft.x - 4, divLeft.y, divRight.x + 4, divRight.y);
+    g.lineStyle(2, 0xf6d87e, 0.9);
+    g.lineBetween(divLeft.x, divLeft.y, divRight.x, divRight.y);
 
-    // Center Alliance Lion Shield watermark on the floor
-    this.createAllianceCrestWatermark(centerX, dividerY);
+    // Draw Alliance Lion Crest watermark on stone
+    this.createAllianceCrestWatermark(this.centerX, (divLeft.y + divRight.y) / 2);
+  }
 
-    // 4. Bench Stone Frame (Banco)
-    const benchW = Board.BENCH_SLOTS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
-    const benchCenterY = this.benchStartY;
+  private fillPerspectiveQuad(
+    g: Phaser.GameObjects.Graphics,
+    tl: PerspectiveVertex,
+    tr: PerspectiveVertex,
+    br: PerspectiveVertex,
+    bl: PerspectiveVertex,
+    inset = 0
+  ) {
+    g.beginPath();
+    g.moveTo(tl.x + inset, tl.y + inset);
+    g.lineTo(tr.x - inset, tr.y + inset);
+    g.lineTo(br.x - inset, br.y - inset);
+    g.lineTo(bl.x + inset, bl.y - inset);
+    g.closePath();
+    g.fillPath();
+  }
 
-    g.fillStyle(0x0c0f17, 0.92);
-    g.fillRoundedRect(centerX - benchW / 2 - 20, benchCenterY - Board.TILE_H / 2 - 18, benchW + 40, Board.TILE_H + 34, 10);
+  private strokePerspectiveQuad(
+    g: Phaser.GameObjects.Graphics,
+    tl: PerspectiveVertex,
+    tr: PerspectiveVertex,
+    br: PerspectiveVertex,
+    bl: PerspectiveVertex,
+    inset = 0
+  ) {
+    g.beginPath();
+    g.moveTo(tl.x + inset, tl.y + inset);
+    g.lineTo(tr.x - inset, tr.y + inset);
+    g.lineTo(br.x - inset, br.y - inset);
+    g.lineTo(bl.x + inset, bl.y - inset);
+    g.closePath();
+    g.strokePath();
+  }
+
+  private createAllianceCrestWatermark(cx: number, cy: number) {
+    const wm = this.scene.add.graphics();
+    wm.setDepth(2);
+    wm.setAlpha(0.3);
+
+    wm.lineStyle(3, 0x60a5fa, 0.8);
+    wm.fillStyle(0x1d4ed8, 0.15);
+
+    // Shield
+    wm.beginPath();
+    wm.moveTo(cx - 50, cy - 40);
+    wm.lineTo(cx + 50, cy - 40);
+    wm.lineTo(cx + 50, cy + 5);
+    wm.lineTo(cx, cy + 52);
+    wm.lineTo(cx - 50, cy + 5);
+    wm.closePath();
+    wm.fillPath();
+    wm.strokePath();
+
+    // Lion Emblem outline
+    wm.lineStyle(2, 0x93c5fd, 0.75);
+    wm.strokeCircle(cx, cy - 8, 20);
+    wm.lineBetween(cx, cy - 30, cx, cy + 32);
+    wm.lineBetween(cx - 20, cy - 12, cx + 20, cy - 12);
+  }
+
+  private createBench() {
+    const g = this.boardGraphics;
+    const benchY = this.benchStartY;
+    const benchW = this.benchWidth;
+
+    // Bench Container Frame
+    g.fillStyle(0x0a0e16, 0.94);
+    g.fillRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
     g.lineStyle(2, 0x3d301c, 0.85);
-    g.strokeRoundedRect(centerX - benchW / 2 - 20, benchCenterY - Board.TILE_H / 2 - 18, benchW + 40, Board.TILE_H + 34, 10);
+    g.strokeRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
 
     // Bench Slots
+    const slotGap = 6;
+    const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
+    const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
+
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
-      const bx = this.benchStartX + i * (Board.TILE_W + Board.TILE_GAP);
-      g.fillStyle(0x131920, 0.9);
-      g.fillRoundedRect(bx - Board.TILE_W / 2, benchCenterY - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
-      g.lineStyle(1.5, 0x2c3b4a, 0.65);
-      g.strokeRoundedRect(bx - Board.TILE_W / 2, benchCenterY - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+      const bx = startX + i * (this.benchSlotW + slotGap);
+      g.fillStyle(0x121822, 0.9);
+      g.fillRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
+      g.lineStyle(1.5, 0x243242, 0.7);
+      g.strokeRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
     }
 
-    // Bench Header Text
-    this.scene.add.text(centerX - benchW / 2 - 8, benchCenterY - Board.TILE_H / 2 - 12, 'Banco (0/8)', {
+    // Header Label: Banco (0/8)
+    this.scene.add.text(this.centerX - benchW / 2 - 4, benchY - 26, 'Banco (0/8)', {
       fontFamily: 'Cinzel, Georgia, serif',
       fontSize: '13px',
       color: '#dfba73',
       fontStyle: 'bold',
+      letterSpacing: 1,
     }).setOrigin(0, 0.5);
   }
 
-  private createAllianceCrestWatermark(centerX: number, centerY: number) {
-    const watermark = this.scene.add.graphics();
-    watermark.setDepth(1);
-    watermark.setAlpha(0.28);
-
-    // Draw stylized Lion Shield emblem in center
-    watermark.lineStyle(3, 0x60a5fa, 0.8);
-    watermark.fillStyle(0x1e3a8a, 0.2);
-
-    // Shield outline
-    watermark.beginPath();
-    watermark.moveTo(centerX - 45, centerY - 45);
-    watermark.lineTo(centerX + 45, centerY - 45);
-    watermark.lineTo(centerX + 45, centerY);
-    watermark.lineTo(centerX, centerY + 50);
-    watermark.lineTo(centerX - 45, centerY);
-    watermark.closePath();
-    watermark.fillPath();
-    watermark.strokePath();
-
-    // Inner lion silhouette / sword runes
-    watermark.lineStyle(2, 0x93c5fd, 0.7);
-    watermark.strokeCircle(centerX, centerY - 10, 18);
-    watermark.lineBetween(centerX, centerY - 32, centerX, centerY + 32);
-    watermark.lineBetween(centerX - 18, centerY - 15, centerX + 18, centerY - 15);
-  }
-
-  private createTacticalTiles() {
-    // 64 Board tiles using lightweight hit Zones (zero DOM/Tween lag!)
+  private createInteractiveZones() {
+    // 64 Board Tiles
     for (let row = 0; row < Board.ROWS; row++) {
       const isPlayer = row >= 4;
       const zoneType: TileZone = isPlayer ? 'PLAYER' : 'ENEMY';
-      const y = this.startY + row * (Board.TILE_H + Board.TILE_GAP);
 
       for (let col = 0; col < Board.COLS; col++) {
-        const x = this.startX + col * (Board.TILE_W + Board.TILE_GAP);
-        const zone = this.scene.add.zone(x, y, Board.TILE_W, Board.TILE_H);
-        zone.setRectangleDropZone(Board.TILE_W, Board.TILE_H);
+        const cTL = this.getGridPoint(col / Board.COLS, row / Board.ROWS);
+        const cTR = this.getGridPoint((col + 1) / Board.COLS, row / Board.ROWS);
+        const cBR = this.getGridPoint((col + 1) / Board.COLS, (row + 1) / Board.ROWS);
+        const cBL = this.getGridPoint(col / Board.COLS, (row + 1) / Board.ROWS);
+
+        const cx = (cTL.x + cTR.x + cBR.x + cBL.x) / 4;
+        const cy = (cTL.y + cTR.y + cBR.y + cBL.y) / 4;
+        const w = (cTR.x - cTL.x + cBR.x - cBL.x) / 2;
+        const h = (cBL.y - cTL.y + cBR.y - cTR.y) / 2;
+
+        const zone = this.scene.add.zone(cx, cy, w, h);
+        zone.setRectangleDropZone(w, h);
         zone.setInteractive({ useHandCursor: true });
-        zone.setDepth(6);
+        zone.setDepth(12);
 
         const key = `${col},${row}`;
         const tile: TacticalTile = {
@@ -197,10 +314,11 @@ export class Board {
           row,
           zone: zoneType,
           isBench: false,
-          x,
-          y,
-          width: Board.TILE_W,
-          height: Board.TILE_H,
+          centerX: cx,
+          centerY: cy,
+          vertices: [cTL, cTR, cBR, cBL],
+          width: w,
+          height: h,
           occupiedBy: null,
           interactiveZone: zone,
         };
@@ -213,14 +331,19 @@ export class Board {
       }
     }
 
-    // 8 Bench tiles
+    // 8 Bench Slots
+    const slotGap = 6;
+    const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
+    const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
+
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
-      const x = this.benchStartX + i * (Board.TILE_W + Board.TILE_GAP);
-      const y = this.benchStartY;
-      const zone = this.scene.add.zone(x, y, Board.TILE_W, Board.TILE_H);
-      zone.setRectangleDropZone(Board.TILE_W, Board.TILE_H);
+      const bx = startX + i * (this.benchSlotW + slotGap);
+      const by = this.benchStartY;
+
+      const zone = this.scene.add.zone(bx, by, this.benchSlotW, this.benchSlotH);
+      zone.setRectangleDropZone(this.benchSlotW, this.benchSlotH);
       zone.setInteractive({ useHandCursor: true });
-      zone.setDepth(6);
+      zone.setDepth(12);
 
       const key = `bench_${i}`;
       const tile: TacticalTile = {
@@ -229,10 +352,10 @@ export class Board {
         zone: 'BENCH',
         isBench: true,
         benchIndex: i,
-        x,
-        y,
-        width: Board.TILE_W,
-        height: Board.TILE_H,
+        centerX: bx,
+        centerY: by,
+        width: this.benchSlotW,
+        height: this.benchSlotH,
         occupiedBy: null,
         interactiveZone: zone,
       };
@@ -289,25 +412,41 @@ export class Board {
     const hg = this.highlightGraphics;
     hg.clear();
 
-    // Draw Selected Tile
+    // 1. Draw Selected Tile
     if (this.selectedKey) {
       const tile = this.getTileByKey(this.selectedKey);
       if (tile) {
         const color = tile.zone === 'ENEMY' ? 0xf87171 : 0x60a5fa;
-        hg.lineStyle(3, color, 1);
-        hg.strokeRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
+        if (tile.vertices) {
+          const [tl, tr, br, bl] = tile.vertices;
+          hg.lineStyle(3.5, color, 1);
+          this.strokePerspectiveQuad(hg, tl, tr, br, bl, 1);
+          hg.fillStyle(color, 0.22);
+          this.fillPerspectiveQuad(hg, tl, tr, br, bl, 1);
+        } else {
+          hg.lineStyle(3, color, 1);
+          hg.strokeRoundedRect(tile.centerX - tile.width / 2, tile.centerY - tile.height / 2, tile.width, tile.height, 6);
+        }
       }
     }
 
-    // Draw Hovered Tile
+    // 2. Draw Hovered Tile
     if (this.activeHoverKey && this.activeHoverKey !== this.selectedKey) {
       const tile = this.getTileByKey(this.activeHoverKey);
       if (tile) {
         const color = tile.zone === 'ENEMY' ? 0xef4444 : tile.zone === 'BENCH' ? 0x4ade80 : 0xdfba73;
-        hg.lineStyle(2.5, color, 0.95);
-        hg.strokeRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
-        hg.fillStyle(color, 0.12);
-        hg.fillRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
+        if (tile.vertices) {
+          const [tl, tr, br, bl] = tile.vertices;
+          hg.lineStyle(2.5, color, 0.95);
+          this.strokePerspectiveQuad(hg, tl, tr, br, bl, 1);
+          hg.fillStyle(color, 0.2);
+          this.fillPerspectiveQuad(hg, tl, tr, br, bl, 1);
+        } else {
+          hg.lineStyle(2.5, color, 0.95);
+          hg.strokeRoundedRect(tile.centerX - tile.width / 2, tile.centerY - tile.height / 2, tile.width, tile.height, 6);
+          hg.fillStyle(color, 0.16);
+          hg.fillRoundedRect(tile.centerX - tile.width / 2, tile.centerY - tile.height / 2, tile.width, tile.height, 6);
+        }
       }
     }
   }
@@ -332,12 +471,12 @@ export class Board {
 
   public getWorldPosition(col: number, row: number): { x: number; y: number } {
     const tile = this.getTile(col, row);
-    return tile ? { x: tile.x, y: tile.y } : { x: 0, y: 0 };
+    return tile ? { x: tile.centerX, y: tile.centerY } : { x: 0, y: 0 };
   }
 
   public getBenchWorldPosition(index: number): { x: number; y: number } {
     const tile = this.getBenchTile(index);
-    return tile ? { x: tile.x, y: tile.y } : { x: 0, y: 0 };
+    return tile ? { x: tile.centerX, y: tile.centerY } : { x: 0, y: 0 };
   }
 
   public isPlayerZone(row: number): boolean {
