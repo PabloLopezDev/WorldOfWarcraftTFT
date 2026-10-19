@@ -41,14 +41,14 @@ export class Board {
   // Dynamic layout values
   private centerX = 0;
   private boardStartY = 0;
-  private boardHeight = 360;
-  private topWidth = 680;
-  private bottomWidth = 860;
+  private boardHeight = 310;
+  private topWidth = 640;
+  private bottomWidth = 840;
 
   private benchStartY = 0;
-  private benchWidth = 840;
-  private benchSlotW = 96;
-  private benchSlotH = 56;
+  private benchWidth = 800;
+  private benchSlotW = 90;
+  private benchSlotH = 50;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -62,29 +62,32 @@ export class Board {
     const { width, height } = this.scene.scale;
     this.centerX = width / 2;
 
-    // Available vertical space between top bar and shop
-    const availableH = height - 230;
-    this.boardHeight = Math.min(Math.max(availableH * 0.54, 270), 340);
+    // Available vertical space between top bar (~55px) and bottom shop (~145px)
+    const availableH = height - 200;
+    this.boardHeight = Math.min(Math.max(availableH * 0.50, 260), 320);
 
     // Responsive board widths
-    const maxAllowedW = Math.min(width - 340, 880);
-    this.bottomWidth = Math.max(maxAllowedW, 660);
-    this.topWidth = this.bottomWidth * 0.78;
+    const maxAllowedW = Math.min(width - 340, 860);
+    this.bottomWidth = Math.max(maxAllowedW, 640);
+    this.topWidth = this.bottomWidth * 0.76;
 
-    // Board start Y (aligned cleanly with background stone terrace)
-    this.boardStartY = 95 + (availableH - this.boardHeight - 110) / 2;
+    // Aligned over the background courtyard
+    this.boardStartY = 85 + (availableH - this.boardHeight - 110) / 2;
 
-    // Generous gap between board bottom and bench
-    this.benchStartY = this.boardStartY + this.boardHeight + 68;
-
-    this.benchWidth = Math.min(this.bottomWidth * 0.96, 780);
+    // Bench slot geometry
+    this.benchWidth = Math.min(this.bottomWidth * 0.95, 760);
     this.benchSlotW = (this.benchWidth - 7 * 8) / 8;
-    this.benchSlotH = 50;
+    this.benchSlotH = 48;
+
+    // Clean, generous gap between board and bench
+    const boardBottom = this.boardStartY + this.boardHeight;
+    const benchGap = 36; // 36px guaranteed clear air gap!
+    const frameTop = boardBottom + benchGap;
+    this.benchStartY = frameTop + 14 + this.benchSlotH / 2;
   }
 
   // Calculate 2.5D perspective grid intersection
   private getGridPoint(colFrac: number, rowFrac: number): PerspectiveVertex {
-    // Non-linear depth spacing for natural foreshortening
     const depthT = rowFrac * 0.72 + (rowFrac * rowFrac) * 0.28;
     const y = this.boardStartY + depthT * this.boardHeight;
     const currentW = this.topWidth + depthT * (this.bottomWidth - this.topWidth);
@@ -100,25 +103,14 @@ export class Board {
     const g = this.boardGraphics;
     g.clear();
 
-    // 1. Bastion Stone Arena Base (Trapezoid with 3D depth bevel)
-    const pTL = this.getGridPoint(-0.04, -0.04);
-    const pTR = this.getGridPoint(1.04, -0.04);
-    const pBR = this.getGridPoint(1.04, 1.04);
-    const pBL = this.getGridPoint(-0.04, 1.04);
+    // 1. Board Perimeter Outline (Clean, perfectly matches 8x8 grid without extra bottom bar)
+    const pTL = this.getGridPoint(0, 0);
+    const pTR = this.getGridPoint(1, 0);
+    const pBR = this.getGridPoint(1, 1);
+    const pBL = this.getGridPoint(0, 1);
 
-    // Stone rim drop shadow / 3D front edge
-    const bevelDepth = 14;
-    g.fillStyle(0x06080d, 0.95);
-    g.beginPath();
-    g.moveTo(pBL.x, pBL.y);
-    g.lineTo(pBR.x, pBR.y);
-    g.lineTo(pBR.x, pBR.y + bevelDepth);
-    g.lineTo(pBL.x, pBL.y + bevelDepth);
-    g.closePath();
-    g.fillPath();
-
-    // Stone Arena Base fill (semi-translucent to let artwork stone show through)
-    g.fillStyle(0x080c14, 0.42);
+    // Base fill (translucent to reveal artwork stone texture underneath)
+    g.fillStyle(0x080c14, 0.40);
     g.beginPath();
     g.moveTo(pTL.x, pTL.y);
     g.lineTo(pTR.x, pTR.y);
@@ -127,11 +119,11 @@ export class Board {
     g.closePath();
     g.fillPath();
 
-    // Stone Frame Gold / Bronze Trim
+    // Outer golden frame border
     g.lineStyle(2.5, 0xdfba73, 0.85);
     g.strokePath();
 
-    // 2. Render all 64 Perspective Tiles with rich translucent ruby and sapphire crystal tints
+    // 2. Render all 64 Perspective Tiles with translucent ruby & sapphire tints
     for (let row = 0; row < Board.ROWS; row++) {
       const isPlayer = row >= 4;
 
@@ -141,17 +133,16 @@ export class Board {
         const cBR = this.getGridPoint((col + 1) / Board.COLS, (row + 1) / Board.ROWS);
         const cBL = this.getGridPoint(col / Board.COLS, (row + 1) / Board.ROWS);
 
-        // Tile body
         if (!isPlayer) {
-          // ENEMY RED SLATE TINT
-          const alpha = ((col + row) % 2 === 0) ? 0.48 : 0.38;
+          // ENEMY RED TINT
+          const alpha = ((col + row) % 2 === 0) ? 0.46 : 0.36;
           g.fillStyle(0x661622, alpha);
           this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
           g.lineStyle(1.5, 0xef4444, 0.65);
           this.strokePerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
         } else {
-          // PLAYER BLUE SLATE TINT
-          const alpha = ((col + row) % 2 === 0) ? 0.48 : 0.38;
+          // PLAYER BLUE TINT
+          const alpha = ((col + row) % 2 === 0) ? 0.46 : 0.36;
           g.fillStyle(0x133866, alpha);
           this.fillPerspectiveQuad(g, cTL, cTR, cBR, cBL, 1.5);
           g.lineStyle(1.5, 0x60a5fa, 0.65);
@@ -160,17 +151,16 @@ export class Board {
       }
     }
 
-    // 3. Central Divide & Alliance Crest Watermark
+    // 3. Central Divide
     const divLeft = this.getGridPoint(0, 0.5);
     const divRight = this.getGridPoint(1, 0.5);
 
-    // Glowing Divider Beam
     g.lineStyle(4, 0xdfba73, 0.4);
     g.lineBetween(divLeft.x - 4, divLeft.y, divRight.x + 4, divRight.y);
     g.lineStyle(2, 0xf6d87e, 0.9);
     g.lineBetween(divLeft.x, divLeft.y, divRight.x, divRight.y);
 
-    // Draw Alliance Lion Crest watermark on stone
+    // Alliance crest in center
     this.createAllianceCrestWatermark(this.centerX, (divLeft.y + divRight.y) / 2);
   }
 
@@ -211,27 +201,25 @@ export class Board {
   private createAllianceCrestWatermark(cx: number, cy: number) {
     const wm = this.scene.add.graphics();
     wm.setDepth(2);
-    wm.setAlpha(0.3);
+    wm.setAlpha(0.28);
 
     wm.lineStyle(3, 0x60a5fa, 0.8);
     wm.fillStyle(0x1d4ed8, 0.15);
 
-    // Shield
     wm.beginPath();
-    wm.moveTo(cx - 50, cy - 40);
-    wm.lineTo(cx + 50, cy - 40);
-    wm.lineTo(cx + 50, cy + 5);
-    wm.lineTo(cx, cy + 52);
-    wm.lineTo(cx - 50, cy + 5);
+    wm.moveTo(cx - 45, cy - 36);
+    wm.lineTo(cx + 45, cy - 36);
+    wm.lineTo(cx + 45, cy + 4);
+    wm.lineTo(cx, cy + 46);
+    wm.lineTo(cx - 45, cy + 4);
     wm.closePath();
     wm.fillPath();
     wm.strokePath();
 
-    // Lion Emblem outline
     wm.lineStyle(2, 0x93c5fd, 0.75);
-    wm.strokeCircle(cx, cy - 8, 20);
-    wm.lineBetween(cx, cy - 30, cx, cy + 32);
-    wm.lineBetween(cx - 20, cy - 12, cx + 20, cy - 12);
+    wm.strokeCircle(cx, cy - 8, 18);
+    wm.lineBetween(cx, cy - 28, cx, cy + 28);
+    wm.lineBetween(cx - 18, cy - 10, cx + 18, cy - 10);
   }
 
   private createBench() {
@@ -239,10 +227,10 @@ export class Board {
     const benchY = this.benchStartY;
     const benchW = this.benchWidth;
 
-    const padX = 16;
+    const padX = 14;
     const padY = 8;
-    const frameTop = benchY - this.benchSlotH / 2 - padY;
-    const frameH = this.benchSlotH + padY * 2;
+    const frameTop = benchY - this.benchSlotH / 2 - padY - 8;
+    const frameH = this.benchSlotH + padY * 2 + 10;
     const frameW = benchW + padX * 2;
 
     // Bench Container Frame
@@ -251,7 +239,20 @@ export class Board {
     g.lineStyle(2, 0xdfba73, 0.95);
     g.strokeRoundedRect(this.centerX - frameW / 2, frameTop, frameW, frameH, 8);
 
-    // Bench Slots
+    // Inner subtle border
+    g.lineStyle(1, 0x2e3e52, 0.5);
+    g.strokeRoundedRect(this.centerX - frameW / 2 + 2, frameTop + 2, frameW - 4, frameH - 4, 7);
+
+    // Title label INSIDE frame: BANCO (0/8)
+    this.scene.add.text(this.centerX - frameW / 2 + 14, frameTop + 5, 'BANCO (0/8)', {
+      fontFamily: 'Cinzel, Georgia, serif',
+      fontSize: '11px',
+      color: '#dfba73',
+      fontStyle: 'bold',
+      letterSpacing: 1,
+    }).setOrigin(0, 0);
+
+    // 8 Bench Slots
     const slotGap = 8;
     const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
     const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
@@ -263,22 +264,6 @@ export class Board {
       g.lineStyle(1.5, 0x3b82f6, 0.8);
       g.strokeRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
     }
-
-    // Header Badge: Banco (0/8)
-    const badgeW = 105;
-    const badgeH = 20;
-    g.fillStyle(0x0e1624, 0.98);
-    g.fillRoundedRect(this.centerX - frameW / 2 + 10, frameTop - badgeH + 2, badgeW, badgeH, 4);
-    g.lineStyle(1.5, 0xdfba73, 0.9);
-    g.strokeRoundedRect(this.centerX - frameW / 2 + 10, frameTop - badgeH + 2, badgeW, badgeH, 4);
-
-    this.scene.add.text(this.centerX - frameW / 2 + 18, frameTop - badgeH / 2 + 2, 'BANCO (0/8)', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '11px',
-      color: '#dfba73',
-      fontStyle: 'bold',
-      letterSpacing: 1,
-    }).setOrigin(0, 0.5);
   }
 
   private createInteractiveZones() {
