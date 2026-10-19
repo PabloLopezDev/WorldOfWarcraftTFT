@@ -62,21 +62,24 @@ export class Board {
     const { width, height } = this.scene.scale;
     this.centerX = width / 2;
 
-    // Center board vertically between top bar (~60px) and bottom shop (~160px)
-    const availableH = height - 220;
-    this.boardHeight = Math.min(Math.max(availableH * 0.65, 300), 400);
+    // Available vertical space between top bar and shop
+    const availableH = height - 230;
+    this.boardHeight = Math.min(Math.max(availableH * 0.54, 270), 340);
 
-    // Responsive widths
-    const maxAllowedW = Math.min(width - 340, 920);
-    this.bottomWidth = Math.max(maxAllowedW, 680);
-    this.topWidth = this.bottomWidth * 0.8;
+    // Responsive board widths
+    const maxAllowedW = Math.min(width - 340, 880);
+    this.bottomWidth = Math.max(maxAllowedW, 660);
+    this.topWidth = this.bottomWidth * 0.78;
 
-    this.boardStartY = 75 + (availableH - this.boardHeight - 80) / 2;
-    this.benchStartY = this.boardStartY + this.boardHeight + 38;
+    // Board start Y (aligned cleanly with background stone terrace)
+    this.boardStartY = 95 + (availableH - this.boardHeight - 110) / 2;
 
-    this.benchWidth = this.bottomWidth;
-    this.benchSlotW = (this.benchWidth - 7 * 6) / 8;
-    this.benchSlotH = Math.min(this.boardHeight * 0.16, 56);
+    // Generous gap between board bottom and bench
+    this.benchStartY = this.boardStartY + this.boardHeight + 68;
+
+    this.benchWidth = Math.min(this.bottomWidth * 0.96, 780);
+    this.benchSlotW = (this.benchWidth - 7 * 8) / 8;
+    this.benchSlotH = 50;
   }
 
   // Calculate 2.5D perspective grid intersection
@@ -236,29 +239,42 @@ export class Board {
     const benchY = this.benchStartY;
     const benchW = this.benchWidth;
 
+    const padX = 16;
+    const padY = 8;
+    const frameTop = benchY - this.benchSlotH / 2 - padY;
+    const frameH = this.benchSlotH + padY * 2;
+    const frameW = benchW + padX * 2;
+
     // Bench Container Frame
-    g.fillStyle(0x0c121d, 0.96);
-    g.fillRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
-    g.lineStyle(2, 0xdfba73, 0.9);
-    g.strokeRoundedRect(this.centerX - benchW / 2 - 14, benchY - 14, benchW + 28, this.benchSlotH + 28, 8);
+    g.fillStyle(0x0a101b, 0.96);
+    g.fillRoundedRect(this.centerX - frameW / 2, frameTop, frameW, frameH, 8);
+    g.lineStyle(2, 0xdfba73, 0.95);
+    g.strokeRoundedRect(this.centerX - frameW / 2, frameTop, frameW, frameH, 8);
 
     // Bench Slots
-    const slotGap = 6;
+    const slotGap = 8;
     const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
     const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
 
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
       const bx = startX + i * (this.benchSlotW + slotGap);
-      g.fillStyle(0x121a28, 0.95);
+      g.fillStyle(0x111926, 0.96);
       g.fillRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
-      g.lineStyle(1.5, 0x3b82f6, 0.75);
+      g.lineStyle(1.5, 0x3b82f6, 0.8);
       g.strokeRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
     }
 
-    // Header Label: Banco (0/8)
-    this.scene.add.text(this.centerX - benchW / 2 - 4, benchY - 26, 'Banco (0/8)', {
+    // Header Badge: Banco (0/8)
+    const badgeW = 105;
+    const badgeH = 20;
+    g.fillStyle(0x0e1624, 0.98);
+    g.fillRoundedRect(this.centerX - frameW / 2 + 10, frameTop - badgeH + 2, badgeW, badgeH, 4);
+    g.lineStyle(1.5, 0xdfba73, 0.9);
+    g.strokeRoundedRect(this.centerX - frameW / 2 + 10, frameTop - badgeH + 2, badgeW, badgeH, 4);
+
+    this.scene.add.text(this.centerX - frameW / 2 + 18, frameTop - badgeH / 2 + 2, 'BANCO (0/8)', {
       fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '13px',
+      fontSize: '11px',
       color: '#dfba73',
       fontStyle: 'bold',
       letterSpacing: 1,
@@ -311,7 +327,7 @@ export class Board {
     }
 
     // 8 Bench Slots
-    const slotGap = 6;
+    const slotGap = 8;
     const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
     const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
 
