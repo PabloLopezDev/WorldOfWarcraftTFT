@@ -20,6 +20,14 @@ export class MainScene extends Phaser.Scene {
     this.load.image('hero_mage', '/hero_mage.jpg');
     this.load.image('hero_hunter', '/hero_hunter.jpg');
     this.load.image('hero_shaman', '/hero_shaman.jpg');
+
+    // Full-body 3D isometric character models
+    this.load.image('model_warrior', '/models/model_warrior.png');
+    this.load.image('model_paladin', '/models/model_paladin.png');
+    this.load.image('model_mage', '/models/model_mage.png');
+    this.load.image('model_hunter', '/models/model_hunter.png');
+    this.load.image('model_shaman', '/models/model_orc.png');
+    this.load.image('model_orc', '/models/model_orc.png');
   }
 
   create() {

@@ -22,11 +22,12 @@ export class Unit extends Phaser.GameObjects.Container {
 
   // Visual sub-elements
   private pedestal!: Phaser.GameObjects.Graphics;
-  private avatarCircle!: Phaser.GameObjects.Graphics;
-  private avatarImage?: Phaser.GameObjects.Image;
+  private modelSprite?: Phaser.GameObjects.Image;
+  private avatarCircle?: Phaser.GameObjects.Graphics;
   private hpBarFill!: Phaser.GameObjects.Graphics;
   private manaBarFill!: Phaser.GameObjects.Graphics;
   private barsContainer!: Phaser.GameObjects.Container;
+  private starText?: Phaser.GameObjects.Text;
 
   // Drag tracking state
   private isDragging = false;
@@ -86,52 +87,88 @@ export class Unit extends Phaser.GameObjects.Container {
     this.pedestal = this.scene.add.graphics();
     const ringColor = this.isPlayerOwned ? 0x3b82f6 : 0xef4444;
 
-    this.pedestal.fillStyle(0x0a1220, 0.7);
-    this.pedestal.fillEllipse(0, 16, 44, 20);
-    this.pedestal.lineStyle(2.5, ringColor, 0.95);
-    this.pedestal.strokeEllipse(0, 16, 44, 20);
+    // Contact drop shadow beneath unit
+    this.pedestal.fillStyle(0x000000, 0.5);
+    this.pedestal.fillEllipse(0, 14, 52, 22);
 
-    // Glowing ground light
+    // Dark pedestal platform
+    this.pedestal.fillStyle(0x0a1322, 0.85);
+    this.pedestal.fillEllipse(0, 14, 44, 18);
+
+    // Tactical team glowing border ring
+    this.pedestal.lineStyle(2.5, ringColor, 0.95);
+    this.pedestal.strokeEllipse(0, 14, 44, 18);
+
+    // Outer subtle team glow
     this.pedestal.lineStyle(1.5, ringColor, 0.4);
-    this.pedestal.strokeEllipse(0, 16, 50, 24);
+    this.pedestal.strokeEllipse(0, 14, 50, 22);
 
     this.add(this.pedestal);
 
-    // 2. Character Portrait Token / Avatar
-    const textureKey = `hero_${this.unitData.id}`;
-    if (this.scene.textures.exists(textureKey)) {
-      this.avatarImage = this.scene.add.image(0, -6, textureKey);
-      this.avatarImage.setDisplaySize(38, 38);
+    // 2. Full-Body 3D Warcraft Isometric Character Model
+    const modelTextureKey = this.unitData.modelKey || `model_${this.unitData.id}`;
+    if (this.scene.textures.exists(modelTextureKey)) {
+      this.modelSprite = this.scene.add.image(0, 15, modelTextureKey);
+      this.modelSprite.setOrigin(0.5, 0.92); // Feet anchored to pedestal
 
-      // Circular mask
-      const maskShape = this.scene.make.graphics();
-      maskShape.fillCircle(this.x, this.y - 6, 18);
-      // Mask will be handled or framed with border
-      this.add(this.avatarImage);
+      // Target character height fits within tactical isometric cell (approx 74px)
+      const targetHeight = 74;
+      const scale = targetHeight / this.modelSprite.height;
+      this.modelSprite.setScale(scale);
+      this.add(this.modelSprite);
+
+      // Subtle breathing idle animation for an alive 3D battle look
+      this.scene.tweens.add({
+        targets: this.modelSprite,
+        scaleY: scale * 1.035,
+        y: 14.2,
+        duration: 1700 + Math.random() * 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
     } else {
-      // Stylized class token
-      this.avatarCircle = this.scene.add.graphics();
-      this.avatarCircle.fillStyle(this.unitData.color, 0.9);
-      this.avatarCircle.fillCircle(0, -6, 18);
-      this.add(this.avatarCircle);
+      // Fallback: Portrait Token if model texture is missing
+      const portraitKey = `hero_${this.unitData.id}`;
+      if (this.scene.textures.exists(portraitKey)) {
+        const avatarImage = this.scene.add.image(0, -6, portraitKey);
+        avatarImage.setDisplaySize(38, 38);
+        this.add(avatarImage);
+      } else {
+        this.avatarCircle = this.scene.add.graphics();
+        this.avatarCircle.fillStyle(this.unitData.color, 0.9);
+        this.avatarCircle.fillCircle(0, -6, 18);
+        this.add(this.avatarCircle);
+      }
+
+      // Golden Rim
+      const tokenRim = this.scene.add.graphics();
+      tokenRim.lineStyle(2.5, 0xdfba73, 0.95);
+      tokenRim.strokeCircle(0, -6, 19);
+      this.add(tokenRim);
     }
 
-    // Golden / Steel Token Rim
-    const tokenRim = this.scene.add.graphics();
-    tokenRim.lineStyle(2.5, 0xdfba73, 0.95);
-    tokenRim.strokeCircle(0, -6, 19);
-    tokenRim.lineStyle(1, 0x000000, 0.7);
-    tokenRim.strokeCircle(0, -6, 20);
-    this.add(tokenRim);
+    // 3. Overhead Health & Mana Bars (Positioned above character model's head)
+    this.barsContainer = this.scene.add.container(0, -58);
 
-    // 3. Overhead Health & Mana Bars
-    this.barsContainer = this.scene.add.container(0, -32);
+    // Star Level indicator
+    if (this.starLevel > 1) {
+      const starsStr = '★'.repeat(this.starLevel);
+      this.starText = this.scene.add.text(0, -10, starsStr, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '11px',
+        color: this.starLevel === 3 ? '#facc15' : '#cbd5e1',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5);
+      this.barsContainer.add(this.starText);
+    }
 
     const barBg = this.scene.add.graphics();
-    barBg.fillStyle(0x0a0e17, 0.9);
-    barBg.fillRoundedRect(-22, -6, 44, 9, 2);
-    barBg.lineStyle(1, 0x222a38, 0.8);
-    barBg.strokeRoundedRect(-22, -6, 44, 9, 2);
+    barBg.fillStyle(0x070b12, 0.9);
+    barBg.fillRoundedRect(-22, -4, 44, 9, 2);
+    barBg.lineStyle(1, 0x243249, 0.9);
+    barBg.strokeRoundedRect(-22, -4, 44, 9, 2);
     this.barsContainer.add(barBg);
 
     // HP Fill (Green)
@@ -154,7 +191,7 @@ export class Unit extends Phaser.GameObjects.Container {
     const width = 40 * ratio;
 
     this.hpBarFill.fillStyle(0x22c55e, 1);
-    this.hpBarFill.fillRect(-20, -5, width, 4);
+    this.hpBarFill.fillRect(-20, -3, width, 4);
   }
 
   public updateManaBar() {
@@ -163,12 +200,15 @@ export class Unit extends Phaser.GameObjects.Container {
     const width = 40 * ratio;
 
     this.manaBarFill.fillStyle(0x38bdf8, 1);
-    this.manaBarFill.fillRect(-20, 0, width, 2);
+    this.manaBarFill.fillRect(-20, 2, width, 2);
   }
 
   private setupInteractivity() {
-    this.setSize(48, 54);
-    this.setInteractive({ draggable: true, useHandCursor: true });
+    this.setSize(54, 76);
+    this.setInteractive(
+      new Phaser.Geom.Rectangle(-27, -58, 54, 76),
+      Phaser.Geom.Rectangle.Contains
+    );
 
     this.scene.input.setDraggable(this);
 

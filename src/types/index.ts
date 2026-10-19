@@ -45,6 +45,7 @@ export interface UnitData {
   stats: UnitStats;
   ability: AbilityData;
   icon?: string;
+  modelKey?: string;
   color: number; // Hex color for stylized placeholder rendering
 }
 

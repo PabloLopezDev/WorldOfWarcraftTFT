@@ -25,6 +25,7 @@ export const INITIAL_UNITS: UnitData[] = [
       damage: 220,
     },
     icon: '/hero_warrior.jpg',
+    modelKey: 'model_warrior',
     color: 0xc69b6d,
   },
   {
@@ -51,6 +52,7 @@ export const INITIAL_UNITS: UnitData[] = [
       heal: 300,
     },
     icon: '/hero_paladin.jpg',
+    modelKey: 'model_paladin',
     color: 0xf58cba,
   },
   {
@@ -77,6 +79,7 @@ export const INITIAL_UNITS: UnitData[] = [
       damage: 280,
     },
     icon: '/hero_mage.jpg',
+    modelKey: 'model_mage',
     color: 0x3fc7eb,
   },
   {
@@ -103,6 +106,7 @@ export const INITIAL_UNITS: UnitData[] = [
       damage: 260,
     },
     icon: '/hero_hunter.jpg',
+    modelKey: 'model_hunter',
     color: 0xaad372,
   },
   {
@@ -130,6 +134,7 @@ export const INITIAL_UNITS: UnitData[] = [
       aoe: true,
     },
     icon: '/hero_shaman.jpg',
+    modelKey: 'model_shaman',
     color: 0x0070de,
   },
 ];
