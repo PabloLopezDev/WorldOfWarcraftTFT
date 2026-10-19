@@ -1,69 +1,59 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus';
+import { Board } from '../Board';
 
 export class MainScene extends Phaser.Scene {
+  public board!: Board;
+
   constructor() {
     super({ key: 'MainScene' });
   }
 
   preload() {
-    // Stage 1: Basic setup and preload
+    // Preload stage for future unit sprites and audio
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Dark fantasy background gradient / rectangle
-    this.add.rectangle(width / 2, height / 2, width, height, 0x0f1118);
+    // Dark fantasy arena stone background
+    this.add.rectangle(width / 2, height / 2, width, height, 0x0c0f16);
 
-    // Subtle grid lines to confirm Phaser rendering correctly
-    const graphics = this.add.graphics();
-    graphics.lineStyle(1, 0x2a354b, 0.4);
-    for (let x = 0; x < width; x += 40) {
-      graphics.moveTo(x, 0);
-      graphics.lineTo(x, height);
-    }
-    for (let y = 0; y < height; y += 40) {
-      graphics.moveTo(0, y);
-      graphics.lineTo(width, y);
-    }
-    graphics.strokePath();
+    // Subtle arena perimeter glow
+    const borderDecor = this.add.graphics();
+    borderDecor.lineStyle(2, 0x3d301c, 0.8);
+    borderDecor.strokeRect(10, 10, width - 20, height - 20);
 
-    // Title banner in Phaser
-    this.add.text(width / 2, height / 2 - 40, 'WARCRAFT AUTO-BATTLER', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '28px',
-      color: '#f6d87e',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    // Corner decorative metal brackets
+    const bracketSize = 16;
+    borderDecor.lineStyle(3, 0xdfba73, 0.7);
+    // Top-left
+    borderDecor.moveTo(10, 10 + bracketSize);
+    borderDecor.lineTo(10, 10);
+    borderDecor.lineTo(10 + bracketSize, 10);
+    // Top-right
+    borderDecor.moveTo(width - 10 - bracketSize, 10);
+    borderDecor.lineTo(width - 10, 10);
+    borderDecor.lineTo(width - 10, 10 + bracketSize);
+    // Bottom-left
+    borderDecor.moveTo(10, height - 10 - bracketSize);
+    borderDecor.lineTo(10, height - 10);
+    borderDecor.lineTo(10 + bracketSize, height - 10);
+    // Bottom-right
+    borderDecor.moveTo(width - 10 - bracketSize, height - 10);
+    borderDecor.lineTo(width - 10, height - 10);
+    borderDecor.lineTo(width - 10, height - 10 - bracketSize);
+    borderDecor.strokePath();
 
-    this.add.text(width / 2, height / 2 + 15, 'Etapa 1: Motor Phaser 3 + React Conectado', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '15px',
-      color: '#8ab4f8',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
+    // Create the tactical 8x8 Board + Bench
+    this.board = new Board(this);
 
-    // Glowing indicator pulse
-    const circle = this.add.circle(width / 2, height / 2 + 60, 8, 0x4ade80);
-    this.tweens.add({
-      targets: circle,
-      alpha: 0.2,
-      scale: 1.5,
-      duration: 1000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Notify React that Phaser scene is fully ready
+    // Notify React that Phaser scene and Board are ready
     EventBus.emit('current-scene-ready', this);
+    EventBus.emit('board-ready', this.board);
   }
 
   update() {
-    // Main game loop update
+    // Main loop logic
   }
 }

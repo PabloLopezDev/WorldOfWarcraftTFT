@@ -256,3 +256,74 @@
 .wow-btn:active {
   transform: translateY(1px);
 }
+
+/* TILE INSPECTOR */
+.tile-inspector {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(223, 186, 115, 0.3);
+}
+
+.inspector-title {
+  font-family: var(--font-fantasy);
+  font-size: 0.82rem;
+  color: var(--color-gold-main);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.tile-detail {
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 0.82rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tile-coords {
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.tile-zone-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.tile-detail.player {
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.15);
+}
+
+.tile-detail.player .tile-zone-badge {
+  color: #60a5fa;
+}
+
+.tile-detail.enemy {
+  border-color: rgba(248, 113, 113, 0.4);
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.15);
+}
+
+.tile-detail.enemy .tile-zone-badge {
+  color: #f87171;
+}
+
+.tile-detail.bench {
+  border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.15);
+}
+
+.tile-detail.bench .tile-zone-badge {
+  color: #4ade80;
+}
+
+.tile-detail.empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 0.78rem;
+}

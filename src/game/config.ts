@@ -3,8 +3,8 @@ import { MainScene } from './scenes/MainScene';
 
 export const createGameConfig = (parent: HTMLElement): Phaser.Types.Core.GameConfig => ({
   type: Phaser.AUTO,
-  width: 800,
-  height: 520,
+  width: 780,
+  height: 640,
   parent,
   backgroundColor: '#0a0d14',
   scale: {

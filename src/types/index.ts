@@ -63,3 +63,16 @@ export interface PlayerState {
   xp: number;
   round: number;
 }
+
+export type TileZone = 'ENEMY' | 'PLAYER' | 'BENCH';
+
+export interface BoardTileInfo {
+  col: number;
+  row: number; // For bench, row can be -1 or specific bench index
+  zone: TileZone;
+  isBench: boolean;
+  benchIndex?: number;
+  isOccupied: boolean;
+  unitId?: string | null;
+}
+
