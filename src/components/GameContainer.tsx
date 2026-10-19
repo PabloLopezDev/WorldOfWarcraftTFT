@@ -13,6 +13,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onGameReady }) => 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
 
+    // Clean any residual children
+    containerRef.current.innerHTML = '';
+
     const config = createGameConfig(containerRef.current);
     const game = new Phaser.Game(config);
     gameRef.current = game;
@@ -29,9 +32,5 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onGameReady }) => 
     };
   }, [onGameReady]);
 
-  return (
-    <div className="game-canvas-wrapper">
-      <div ref={containerRef} className="phaser-container" />
-    </div>
-  );
+  return <div ref={containerRef} className="phaser-canvas-container" />;
 };

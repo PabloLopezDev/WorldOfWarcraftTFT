@@ -1,27 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import type { PlayerState, BoardTileInfo } from '../types';
+import type { PlayerState, BoardTileInfo, UnitData } from '../types';
 import { EventBus } from '../game/EventBus';
+import { Shop } from './Shop';
+import { INITIAL_UNITS } from '../data/units';
 
 interface HUDProps {
   player: PlayerState;
-  onStartRound?: () => void;
+  onUpdatePlayer: React.Dispatch<React.SetStateAction<PlayerState>>;
 }
 
-export const HUD: React.FC<HUDProps> = ({ player, onStartRound }) => {
+export const HUD: React.FC<HUDProps> = ({ player, onUpdatePlayer }) => {
   const [activeTile, setActiveTile] = useState<BoardTileInfo | null>(null);
+  const [shopUnits, setShopUnits] = useState<UnitData[]>(INITIAL_UNITS.slice(0, 5));
 
   useEffect(() => {
-    const handleTileHover = (tile: BoardTileInfo) => {
-      setActiveTile(tile);
-    };
-
-    const handleTileOut = () => {
-      // Keep selected tile or null
-    };
-
-    const handleTileSelected = (tile: BoardTileInfo) => {
-      setActiveTile(tile);
-    };
+    const handleTileHover = (tile: BoardTileInfo) => setActiveTile(tile);
+    const handleTileOut = () => {};
+    const handleTileSelected = (tile: BoardTileInfo) => setActiveTile(tile);
 
     EventBus.on('tile-hover', handleTileHover);
     EventBus.on('tile-out', handleTileOut);
@@ -34,94 +29,174 @@ export const HUD: React.FC<HUDProps> = ({ player, onStartRound }) => {
     };
   }, []);
 
+  const handleReroll = () => {
+    if (player.gold < 2) return;
+    onUpdatePlayer((prev) => ({ ...prev, gold: prev.gold - 2 }));
+    // Shuffle or regenerate 5 units
+    const shuffled = [...INITIAL_UNITS].sort(() => 0.5 - Math.random());
+    setShopUnits(shuffled.slice(0, 5));
+  };
+
+  const handleBuyXp = () => {
+    if (player.gold < 4) return;
+    onUpdatePlayer((prev) => {
+      const newXp = prev.xp + 4;
+      if (newXp >= 4) {
+        return {
+          ...prev,
+          gold: prev.gold - 4,
+          level: prev.level + 1,
+          xp: newXp - 4,
+        };
+      }
+      return { ...prev, gold: prev.gold - 4, xp: newXp };
+    });
+  };
+
+  const handleBuyUnit = (unit: UnitData, index: number) => {
+    if (player.gold < unit.cost) return;
+
+    onUpdatePlayer((prev) => ({ ...prev, gold: prev.gold - unit.cost }));
+
+    // Empty slot in shop
+    setShopUnits((prev) => {
+      const copy = [...prev];
+      // Keep empty or placeholder
+      return copy.filter((_, i) => i !== index);
+    });
+
+    // Notify Phaser game bus
+    EventBus.emit('unit-purchased', unit);
+  };
+
   return (
-    <div className="game-hud">
-      {/* TOP BAR */}
-      <header className="hud-top-bar">
-        <div className="hud-panel stat-box hp-box">
-          <span className="icon">❤️</span>
-          <span className="value">{player.hp} / {player.maxHp} HP</span>
+    <div className="game-hud-overlay">
+      {/* 1. TOP BAR */}
+      <header className="hud-top-bar-ref">
+        {/* Alliance Crest & HP */}
+        <div className="top-left-group">
+          <div className="alliance-shield-badge">
+            <span className="crest-lion">🦁</span>
+          </div>
+          <div className="player-hp-pill">
+            <span className="hp-heart">❤️</span>
+            <span className="hp-value">{player.hp}</span>
+          </div>
         </div>
 
-        <div className="hud-panel round-indicator">
-          <span className="round-badge">⚔️ RONDA {player.round} ⚔️</span>
-          <span className="phase-text">FASE DE PREPARACIÓN</span>
+        {/* Center Stage & Economy Pill */}
+        <div className="top-center-pill">
+          <span className="stage-round">1-3</span>
+          <span className="swords-icon">⚔️</span>
+          <span className="gold-pill">🪙 {player.gold}</span>
+          <span className="level-pill">⭐ Nivel {player.level}</span>
+          <button className="settings-btn" title="Ajustes">⚙️</button>
         </div>
 
-        <div className="hud-panel stat-box gold-level-box">
-          <div className="stat-pill gold">
-            <span className="icon">🪙</span>
-            <span className="value">{player.gold} ORO</span>
-          </div>
-          <div className="stat-pill level">
-            <span className="icon">⭐</span>
-            <span className="value">NIVEL {player.level}</span>
-          </div>
+        {/* Right Top Status (Placeholder) */}
+        <div className="top-right-group">
+          <button className="gold-hud-btn" onClick={() => onUpdatePlayer((prev) => ({ ...prev, gold: prev.gold + 5 }))}>
+            +5 🪙 (Test)
+          </button>
         </div>
       </header>
 
-      {/* RIGHT SIDE PANEL: PLAYERS LEADERBOARD & TILE INSPECTOR */}
-      <aside className="hud-right-panel hud-panel">
-        <div className="panel-header">
-          <h3>JUGADORES</h3>
+      {/* 2. LEFT PANEL: SYNERGIES */}
+      <aside className="hud-left-synergies">
+        <div className="synergy-row">
+          <div className="synergy-icon alliance">🦁</div>
+          <div className="synergy-info">
+            <div className="synergy-title">Alianza</div>
+            <div className="synergy-tiers">
+              <span className="active-tier">2</span>
+              <span className="tier-steps">2 / 4 / 6</span>
+            </div>
+          </div>
         </div>
-        <ul className="players-list">
-          <li className="player-row active">
-            <span className="rank">1.</span>
-            <span className="name">Tú</span>
-            <span className="hp">❤️ {player.hp}</span>
-          </li>
-          <li className="player-row">
-            <span className="rank">2.</span>
-            <span className="name">Thrall</span>
-            <span className="hp">❤️ 100</span>
-          </li>
-          <li className="player-row">
-            <span className="rank">3.</span>
-            <span className="name">Arthas</span>
-            <span className="hp">❤️ 100</span>
-          </li>
-          <li className="player-row">
-            <span className="rank">4.</span>
-            <span className="name">Jaina</span>
-            <span className="hp">❤️ 100</span>
-          </li>
-        </ul>
 
-        {/* TILE INSPECTOR */}
-        <div className="tile-inspector">
-          <div className="inspector-title">CASILLA TÁCTICA</div>
-          {activeTile ? (
-            <div className={`tile-detail ${activeTile.zone.toLowerCase()}`}>
-              <div className="tile-coords">
-                {activeTile.isBench
-                  ? `Banco Slot #${(activeTile.benchIndex ?? 0) + 1}`
-                  : `Columna ${activeTile.col + 1}, Fila ${activeTile.row + 1}`}
-              </div>
-              <div className="tile-zone-badge">
-                {activeTile.zone === 'PLAYER' && '🛡️ ZONA ALIADA (PERMITIDO)'}
-                {activeTile.zone === 'ENEMY' && '⚔️ ZONA ENEMIGA (RESTRINGIDO)'}
-                {activeTile.zone === 'BENCH' && '📦 BANCO DE RESERVA'}
-              </div>
+        <div className="synergy-row">
+          <div className="synergy-icon warrior">⚔️</div>
+          <div className="synergy-info">
+            <div className="synergy-title">Guerreros</div>
+            <div className="synergy-tiers">
+              <span className="active-tier">2</span>
+              <span className="tier-steps">2 / 4 / 6</span>
             </div>
-          ) : (
-            <div className="tile-detail empty">
-              Pasa el cursor sobre una casilla del tablero
+          </div>
+        </div>
+
+        <div className="synergy-row">
+          <div className="synergy-icon mage">🔮</div>
+          <div className="synergy-info">
+            <div className="synergy-title">Hechicero</div>
+            <div className="synergy-tiers">
+              <span className="active-tier">1</span>
+              <span className="tier-steps">3</span>
             </div>
-          )}
+          </div>
         </div>
       </aside>
 
-      {/* BOTTOM CONTROLS */}
-      <footer className="hud-bottom-bar">
-        <div className="hud-panel bottom-status">
-          <div className="stage-note">
-            <span className="gold-text">ETAPA 2 ACTIVA:</span> Tablero táctico 8x4 jugador / 8x4 enemigo + Banco de 8 espacios.
+      {/* 3. RIGHT PANEL: PLAYERS LEADERBOARD */}
+      <aside className="hud-right-players">
+        <div className="player-score-card active-user">
+          <div className="player-avatar-ring">👤</div>
+          <div className="player-meta">
+            <span className="player-name">Tú</span>
+            <span className="player-health">100</span>
           </div>
-          <button className="wow-btn start-round-btn" onClick={onStartRound}>
-            ⚔️ COMENZAR RONDA (PREVIEW)
-          </button>
         </div>
+
+        <div className="player-score-card">
+          <div className="player-avatar-ring orc">🪓</div>
+          <div className="player-meta">
+            <span className="player-name">Thrall</span>
+            <span className="player-health">82</span>
+          </div>
+        </div>
+
+        <div className="player-score-card">
+          <div className="player-avatar-ring knight">🛡️</div>
+          <div className="player-meta">
+            <span className="player-name">Arthas</span>
+            <span className="player-health">76</span>
+          </div>
+        </div>
+
+        <div className="player-score-card">
+          <div className="player-avatar-ring jaina">✨</div>
+          <div className="player-meta">
+            <span className="player-name">Jaina</span>
+            <span className="player-health">63</span>
+          </div>
+        </div>
+
+        {/* Tactical tile mini status */}
+        {activeTile && (
+          <div className="hud-tile-tooltip">
+            <span className="tooltip-zone">
+              {activeTile.zone === 'PLAYER' && '🟦 Tu Territorio'}
+              {activeTile.zone === 'ENEMY' && '🟥 Territorio Enemigo'}
+              {activeTile.zone === 'BENCH' && '🟩 Banco'}
+            </span>
+            <span className="tooltip-coords">
+              {activeTile.isBench ? `Slot #${(activeTile.benchIndex ?? 0) + 1}` : `${activeTile.col + 1}, ${activeTile.row + 1}`}
+            </span>
+          </div>
+        )}
+      </aside>
+
+      {/* 4. BOTTOM BAR: SHOP */}
+      <footer className="hud-bottom-shop-bar">
+        <Shop
+          units={shopUnits}
+          gold={player.gold}
+          xp={player.xp}
+          level={player.level}
+          onBuyUnit={handleBuyUnit}
+          onReroll={handleReroll}
+          onBuyXp={handleBuyXp}
+        />
       </footer>
     </div>
   );

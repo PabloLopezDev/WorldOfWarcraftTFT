@@ -2,263 +2,254 @@ import Phaser from 'phaser';
 import type { BoardTileInfo, TileZone } from '../types';
 import { EventBus } from './EventBus';
 
-export interface TileObject {
+export interface TacticalTile {
   col: number;
   row: number;
   zone: TileZone;
   isBench: boolean;
   benchIndex?: number;
-  container: Phaser.GameObjects.Container;
-  bgRect: Phaser.GameObjects.Rectangle;
-  borderRect: Phaser.GameObjects.Rectangle;
-  highlightGlow: Phaser.GameObjects.Graphics;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   occupiedBy: string | null;
+  interactiveZone: Phaser.GameObjects.Zone;
 }
 
 export class Board {
   public static readonly COLS = 8;
-  public static readonly ROWS = 8; // 0..3: Enemy, 4..7: Player
+  public static readonly ROWS = 8; // 0..3: Enemy (Red), 4..7: Player (Blue)
   public static readonly BENCH_SLOTS = 8;
 
-  public static readonly TILE_WIDTH = 58;
-  public static readonly TILE_HEIGHT = 54;
-  public static readonly TILE_GAP = 5;
+  // Board geometry on 1920x1080 canvas
+  public static readonly TILE_W = 100;
+  public static readonly TILE_H = 62;
+  public static readonly TILE_GAP = 6;
 
   private scene: Phaser.Scene;
-  private tiles: Map<string, TileObject> = new Map();
-  private benchTiles: TileObject[] = [];
-  private selectedTileKey: string | null = null;
+  private tiles: Map<string, TacticalTile> = new Map();
+  private benchTiles: TacticalTile[] = [];
 
-  // Board layout origin
+  // Graphics layers for ultra-smooth 60fps performance
+  private boardGraphics!: Phaser.GameObjects.Graphics;
+  private highlightGraphics!: Phaser.GameObjects.Graphics;
+
+  private activeHoverKey: string | null = null;
+  private selectedKey: string | null = null;
+
+  // Origins
   private startX = 0;
   private startY = 0;
+  private benchStartX = 0;
   private benchStartY = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.calculateLayout();
-    this.createDecorations();
-    this.createGrid();
-    this.createBench();
+    this.createStaticLayers();
+    this.createTacticalTiles();
   }
 
   private calculateLayout() {
-    const totalBoardWidth = Board.COLS * (Board.TILE_WIDTH + Board.TILE_GAP) - Board.TILE_GAP;
-    this.startX = (this.scene.scale.width - totalBoardWidth) / 2 + Board.TILE_WIDTH / 2;
-    this.startY = 60; // Top margin for labels
-    this.benchStartY = this.startY + Board.ROWS * (Board.TILE_HEIGHT + Board.TILE_GAP) + 32;
+    const totalW = Board.COLS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
+    this.startX = (1920 - totalW) / 2 + Board.TILE_W / 2;
+    this.startY = 140; // Fits perfectly below top HUD
+
+    // Bench positioned right under the board
+    const benchTotalW = Board.BENCH_SLOTS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
+    this.benchStartX = (1920 - benchTotalW) / 2 + Board.TILE_W / 2;
+    this.benchStartY = this.startY + Board.ROWS * (Board.TILE_H + Board.TILE_GAP) + 36;
   }
 
-  private createDecorations() {
-    const { width } = this.scene.scale;
-    const totalBoardWidth = Board.COLS * (Board.TILE_WIDTH + Board.TILE_GAP) - Board.TILE_GAP;
-    const centerX = width / 2;
+  private createStaticLayers() {
+    this.boardGraphics = this.scene.add.graphics();
+    this.highlightGraphics = this.scene.add.graphics();
+    this.highlightGraphics.setDepth(5);
 
-    // Background tactical frame behind the board
-    const boardHeight = Board.ROWS * (Board.TILE_HEIGHT + Board.TILE_GAP) + 20;
-    const boardBg = this.scene.add.rectangle(
-      centerX,
-      this.startY + boardHeight / 2 - Board.TILE_HEIGHT / 2 - 5,
-      totalBoardWidth + 30,
-      boardHeight + 20,
-      0x0a0d14,
-      0.9
-    );
-    boardBg.setStrokeStyle(2, 0x4a3b1f, 0.8);
+    const totalW = Board.COLS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
+    const totalH = Board.ROWS * (Board.TILE_H + Board.TILE_GAP) - Board.TILE_GAP;
+    const centerX = 1920 / 2;
+    const centerY = this.startY + totalH / 2 - Board.TILE_H / 2;
 
-    // Top Header: ENEMY ZONE
-    this.scene.add.text(centerX, this.startY - 38, 'TERRITORIO ENEMIGO', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '13px',
-      color: '#e57373',
-      fontStyle: 'bold',
-      letterSpacing: 2,
-    }).setOrigin(0.5);
+    const g = this.boardGraphics;
 
-    // Divider Line between Enemy (rows 0-3) and Player (rows 4-7)
-    const dividerY = this.startY + 4 * (Board.TILE_HEIGHT + Board.TILE_GAP) - Board.TILE_GAP / 2 - 2;
+    // 1. Bastion Stone Platform Base
+    g.fillStyle(0x0c0f17, 0.95);
+    g.fillRoundedRect(centerX - totalW / 2 - 24, centerY - totalH / 2 - 20, totalW + 48, totalH + 40, 12);
+    g.lineStyle(3, 0x4a3a22, 0.9);
+    g.strokeRoundedRect(centerX - totalW / 2 - 24, centerY - totalH / 2 - 20, totalW + 48, totalH + 40, 12);
 
-    // Glowing Divider
-    const dividerGlow = this.scene.add.graphics();
-    dividerGlow.lineStyle(4, 0xdfba73, 0.35);
-    dividerGlow.lineBetween(centerX - totalBoardWidth / 2 - 10, dividerY, centerX + totalBoardWidth / 2 + 10, dividerY);
+    // Subtle inner gold rim
+    g.lineStyle(1, 0x9e7f3b, 0.4);
+    g.strokeRoundedRect(centerX - totalW / 2 - 21, centerY - totalH / 2 - 17, totalW + 42, totalH + 34, 10);
 
-    const dividerLine = this.scene.add.graphics();
-    dividerLine.lineStyle(2, 0xf6d87e, 0.9);
-    dividerLine.lineBetween(centerX - totalBoardWidth / 2, dividerY, centerX + totalBoardWidth / 2, dividerY);
-
-    // Center divider badge
-    const badgeBg = this.scene.add.rectangle(centerX, dividerY, 170, 18, 0x141824, 0.95);
-    badgeBg.setStrokeStyle(1, 0xdfba73, 0.8);
-    this.scene.add.text(centerX, dividerY, '⚔️ FRENTE DE COMBATE ⚔️', {
-      fontFamily: 'Cinzel, serif',
-      fontSize: '10px',
-      color: '#dfba73',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    // Player Zone Label
-    const playerZoneLabelY = dividerY + 14;
-    this.scene.add.text(centerX, playerZoneLabelY + (Board.ROWS - 4) * (Board.TILE_HEIGHT + Board.TILE_GAP) + 12, 'TU TERRITORIO (DESPLIEGUE ALIADO)', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '12px',
-      color: '#60a5fa',
-      fontStyle: 'bold',
-      letterSpacing: 1.5,
-    }).setOrigin(0.5);
-
-    // Bench Header
-    this.scene.add.text(centerX, this.benchStartY - 30, 'BANCO DE RESERVA', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '12px',
-      color: '#4ade80',
-      fontStyle: 'bold',
-      letterSpacing: 1.5,
-    }).setOrigin(0.5);
-  }
-
-  private createGrid() {
+    // 2. Render all 64 Tiles in single batch
     for (let row = 0; row < Board.ROWS; row++) {
       const isPlayer = row >= 4;
-      const zone: TileZone = isPlayer ? 'PLAYER' : 'ENEMY';
+      const y = this.startY + row * (Board.TILE_H + Board.TILE_GAP);
 
       for (let col = 0; col < Board.COLS; col++) {
-        const x = this.startX + col * (Board.TILE_WIDTH + Board.TILE_GAP);
-        const y = this.startY + row * (Board.TILE_HEIGHT + Board.TILE_GAP);
+        const x = this.startX + col * (Board.TILE_W + Board.TILE_GAP);
 
-        const tile = this.createTileObject(x, y, col, row, zone, false);
+        if (!isPlayer) {
+          // ENEMY RED SLATE TILE
+          g.fillStyle(0x281216, 0.88);
+          g.fillRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+          g.lineStyle(1.5, 0x5a232b, 0.7);
+          g.strokeRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+          // Red stone texture accents
+          g.lineStyle(1, 0x3d171d, 0.5);
+          g.strokeRect(x - Board.TILE_W / 2 + 3, y - Board.TILE_H / 2 + 3, Board.TILE_W - 6, Board.TILE_H - 6);
+        } else {
+          // PLAYER BLUE SLATE TILE
+          g.fillStyle(0x111c2e, 0.88);
+          g.fillRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+          g.lineStyle(1.5, 0x243e69, 0.7);
+          g.strokeRoundedRect(x - Board.TILE_W / 2, y - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+          // Blue stone texture accents
+          g.lineStyle(1, 0x182a47, 0.5);
+          g.strokeRect(x - Board.TILE_W / 2 + 3, y - Board.TILE_H / 2 + 3, Board.TILE_W - 6, Board.TILE_H - 6);
+        }
+      }
+    }
+
+    // 3. Central Divide & Alliance Crest Watermark
+    const dividerY = this.startY + 4 * (Board.TILE_H + Board.TILE_GAP) - Board.TILE_GAP / 2 - Board.TILE_H / 2;
+
+    // Glowing border divider
+    g.lineStyle(3, 0xdfba73, 0.75);
+    g.lineBetween(centerX - totalW / 2, dividerY, centerX + totalW / 2, dividerY);
+
+    // Center Alliance Lion Shield watermark on the floor
+    this.createAllianceCrestWatermark(centerX, dividerY);
+
+    // 4. Bench Stone Frame (Banco)
+    const benchW = Board.BENCH_SLOTS * (Board.TILE_W + Board.TILE_GAP) - Board.TILE_GAP;
+    const benchCenterY = this.benchStartY;
+
+    g.fillStyle(0x0c0f17, 0.92);
+    g.fillRoundedRect(centerX - benchW / 2 - 20, benchCenterY - Board.TILE_H / 2 - 18, benchW + 40, Board.TILE_H + 34, 10);
+    g.lineStyle(2, 0x3d301c, 0.85);
+    g.strokeRoundedRect(centerX - benchW / 2 - 20, benchCenterY - Board.TILE_H / 2 - 18, benchW + 40, Board.TILE_H + 34, 10);
+
+    // Bench Slots
+    for (let i = 0; i < Board.BENCH_SLOTS; i++) {
+      const bx = this.benchStartX + i * (Board.TILE_W + Board.TILE_GAP);
+      g.fillStyle(0x131920, 0.9);
+      g.fillRoundedRect(bx - Board.TILE_W / 2, benchCenterY - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+      g.lineStyle(1.5, 0x2c3b4a, 0.65);
+      g.strokeRoundedRect(bx - Board.TILE_W / 2, benchCenterY - Board.TILE_H / 2, Board.TILE_W, Board.TILE_H, 6);
+    }
+
+    // Bench Header Text
+    this.scene.add.text(centerX - benchW / 2 - 8, benchCenterY - Board.TILE_H / 2 - 12, 'Banco (0/8)', {
+      fontFamily: 'Cinzel, Georgia, serif',
+      fontSize: '13px',
+      color: '#dfba73',
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
+  }
+
+  private createAllianceCrestWatermark(centerX: number, centerY: number) {
+    const watermark = this.scene.add.graphics();
+    watermark.setDepth(1);
+    watermark.setAlpha(0.28);
+
+    // Draw stylized Lion Shield emblem in center
+    watermark.lineStyle(3, 0x60a5fa, 0.8);
+    watermark.fillStyle(0x1e3a8a, 0.2);
+
+    // Shield outline
+    watermark.beginPath();
+    watermark.moveTo(centerX - 45, centerY - 45);
+    watermark.lineTo(centerX + 45, centerY - 45);
+    watermark.lineTo(centerX + 45, centerY);
+    watermark.lineTo(centerX, centerY + 50);
+    watermark.lineTo(centerX - 45, centerY);
+    watermark.closePath();
+    watermark.fillPath();
+    watermark.strokePath();
+
+    // Inner lion silhouette / sword runes
+    watermark.lineStyle(2, 0x93c5fd, 0.7);
+    watermark.strokeCircle(centerX, centerY - 10, 18);
+    watermark.lineBetween(centerX, centerY - 32, centerX, centerY + 32);
+    watermark.lineBetween(centerX - 18, centerY - 15, centerX + 18, centerY - 15);
+  }
+
+  private createTacticalTiles() {
+    // 64 Board tiles using lightweight hit Zones (zero DOM/Tween lag!)
+    for (let row = 0; row < Board.ROWS; row++) {
+      const isPlayer = row >= 4;
+      const zoneType: TileZone = isPlayer ? 'PLAYER' : 'ENEMY';
+      const y = this.startY + row * (Board.TILE_H + Board.TILE_GAP);
+
+      for (let col = 0; col < Board.COLS; col++) {
+        const x = this.startX + col * (Board.TILE_W + Board.TILE_GAP);
+        const zone = this.scene.add.zone(x, y, Board.TILE_W, Board.TILE_H);
+        zone.setRectangleDropZone(Board.TILE_W, Board.TILE_H);
+        zone.setInteractive({ useHandCursor: true });
+        zone.setDepth(6);
+
         const key = `${col},${row}`;
+        const tile: TacticalTile = {
+          col,
+          row,
+          zone: zoneType,
+          isBench: false,
+          x,
+          y,
+          width: Board.TILE_W,
+          height: Board.TILE_H,
+          occupiedBy: null,
+          interactiveZone: zone,
+        };
+
+        zone.on('pointerover', () => this.onTileOver(key, tile));
+        zone.on('pointerout', () => this.onTileOut(key));
+        zone.on('pointerdown', () => this.onTileClick(key, tile));
+
         this.tiles.set(key, tile);
       }
     }
-  }
 
-  private createBench() {
+    // 8 Bench tiles
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
-      const x = this.startX + i * (Board.TILE_WIDTH + Board.TILE_GAP);
+      const x = this.benchStartX + i * (Board.TILE_W + Board.TILE_GAP);
       const y = this.benchStartY;
+      const zone = this.scene.add.zone(x, y, Board.TILE_W, Board.TILE_H);
+      zone.setRectangleDropZone(Board.TILE_W, Board.TILE_H);
+      zone.setInteractive({ useHandCursor: true });
+      zone.setDepth(6);
 
-      const tile = this.createTileObject(x, y, i, -1, 'BENCH', true, i);
+      const key = `bench_${i}`;
+      const tile: TacticalTile = {
+        col: i,
+        row: -1,
+        zone: 'BENCH',
+        isBench: true,
+        benchIndex: i,
+        x,
+        y,
+        width: Board.TILE_W,
+        height: Board.TILE_H,
+        occupiedBy: null,
+        interactiveZone: zone,
+      };
+
+      zone.on('pointerover', () => this.onTileOver(key, tile));
+      zone.on('pointerout', () => this.onTileOut(key));
+      zone.on('pointerdown', () => this.onTileClick(key, tile));
+
       this.benchTiles.push(tile);
     }
   }
 
-  private createTileObject(
-    x: number,
-    y: number,
-    col: number,
-    row: number,
-    zone: TileZone,
-    isBench: boolean,
-    benchIndex?: number
-  ): TileObject {
-    const container = this.scene.add.container(x, y);
+  private onTileOver(key: string, tile: TacticalTile) {
+    this.activeHoverKey = key;
+    this.redrawHighlights();
 
-    // Base colors according to zone
-    let fillColor = 0x131722;
-    let strokeColor = 0x2a364f;
-    let baseAlpha = 0.75;
-
-    if (zone === 'ENEMY') {
-      fillColor = 0x1a1215;
-      strokeColor = 0x4a2228;
-      baseAlpha = 0.7;
-    } else if (zone === 'PLAYER') {
-      fillColor = 0x121a29;
-      strokeColor = 0x2c436b;
-      baseAlpha = 0.8;
-    } else if (zone === 'BENCH') {
-      fillColor = 0x141b17;
-      strokeColor = 0x274332;
-      baseAlpha = 0.85;
-    }
-
-    // Outer border
-    const borderRect = this.scene.add.rectangle(0, 0, Board.TILE_WIDTH, Board.TILE_HEIGHT, strokeColor);
-    borderRect.setStrokeStyle(1, strokeColor, 0.9);
-
-    // Inner tile body
-    const bgRect = this.scene.add.rectangle(0, 0, Board.TILE_WIDTH - 2, Board.TILE_HEIGHT - 2, fillColor, baseAlpha);
-
-    // Subtle runic corner markers
-    const runeGraphics = this.scene.add.graphics();
-    runeGraphics.lineStyle(1, strokeColor, 0.6);
-    const halfW = Board.TILE_WIDTH / 2 - 4;
-    const halfH = Board.TILE_HEIGHT / 2 - 4;
-    // Top-left corner
-    runeGraphics.moveTo(-halfW, -halfH + 4);
-    runeGraphics.lineTo(-halfW, -halfH);
-    runeGraphics.lineTo(-halfW + 4, -halfH);
-    // Bottom-right corner
-    runeGraphics.moveTo(halfW, halfH - 4);
-    runeGraphics.lineTo(halfW, halfH);
-    runeGraphics.lineTo(halfW - 4, halfH);
-    runeGraphics.strokePath();
-
-    // Highlight glow layer (hidden by default)
-    const highlightGlow = this.scene.add.graphics();
-    highlightGlow.setVisible(false);
-
-    // Tile coordinate/slot label for subtle orientation
-    const slotLabel = isBench ? `B${col + 1}` : `${col + 1},${row + 1}`;
-    const labelText = this.scene.add.text(0, Board.TILE_HEIGHT / 2 - 8, slotLabel, {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '8px',
-      color: zone === 'ENEMY' ? '#5a3d42' : zone === 'PLAYER' ? '#3d5272' : '#3d5f48',
-    }).setOrigin(0.5);
-
-    container.add([borderRect, bgRect, runeGraphics, highlightGlow, labelText]);
-
-    // Setup interactivity
-    container.setSize(Board.TILE_WIDTH, Board.TILE_HEIGHT);
-    container.setInteractive({ useHandCursor: true });
-
-    const tileObj: TileObject = {
-      col,
-      row,
-      zone,
-      isBench,
-      benchIndex,
-      container,
-      bgRect,
-      borderRect,
-      highlightGlow,
-      occupiedBy: null,
-    };
-
-    // Events
-    container.on('pointerover', () => this.handleTileHover(tileObj));
-    container.on('pointerout', () => this.handleTileOut(tileObj));
-    container.on('pointerdown', () => this.handleTileClick(tileObj));
-
-    return tileObj;
-  }
-
-  private handleTileHover(tile: TileObject) {
-    const isPlayerHalf = tile.zone === 'PLAYER' || tile.zone === 'BENCH';
-    const glowColor = isPlayerHalf ? 0xdfba73 : 0xef4444; // Gold for valid, Red for enemy
-
-    tile.highlightGlow.clear();
-    tile.highlightGlow.lineStyle(3, glowColor, 1);
-    tile.highlightGlow.strokeRect(
-      -Board.TILE_WIDTH / 2,
-      -Board.TILE_HEIGHT / 2,
-      Board.TILE_WIDTH,
-      Board.TILE_HEIGHT
-    );
-    tile.highlightGlow.setVisible(true);
-
-    // Subtle scale up animation on hover
-    this.scene.tweens.killTweensOf(tile.container);
-    this.scene.tweens.add({
-      targets: tile.container,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 100,
-      ease: 'Quad.easeOut',
-    });
-
-    const tileInfo: BoardTileInfo = {
+    const info: BoardTileInfo = {
       col: tile.col,
       row: tile.row,
       zone: tile.zone,
@@ -267,71 +258,61 @@ export class Board {
       isOccupied: tile.occupiedBy !== null,
       unitId: tile.occupiedBy,
     };
-
-    EventBus.emit('tile-hover', tileInfo);
+    EventBus.emit('tile-hover', info);
   }
 
-  private handleTileOut(tile: TileObject) {
-    const key = tile.isBench ? `bench_${tile.benchIndex}` : `${tile.col},${tile.row}`;
-    const isSelected = this.selectedTileKey === key;
-
-    if (!isSelected) {
-      tile.highlightGlow.setVisible(false);
-      this.scene.tweens.killTweensOf(tile.container);
-      this.scene.tweens.add({
-        targets: tile.container,
-        scaleX: 1.0,
-        scaleY: 1.0,
-        duration: 120,
-        ease: 'Quad.easeOut',
-      });
+  private onTileOut(key: string) {
+    if (this.activeHoverKey === key) {
+      this.activeHoverKey = null;
+      this.redrawHighlights();
+      EventBus.emit('tile-out');
     }
-
-    EventBus.emit('tile-out');
   }
 
-  private handleTileClick(tile: TileObject) {
-    const key = tile.isBench ? `bench_${tile.benchIndex}` : `${tile.col},${tile.row}`;
+  private onTileClick(key: string, tile: TacticalTile) {
+    this.selectedKey = key;
+    this.redrawHighlights();
 
-    // Deselect previous tile if any
-    if (this.selectedTileKey && this.selectedTileKey !== key) {
-      const prevTile = this.getTileByKey(this.selectedTileKey);
-      if (prevTile) {
-        prevTile.highlightGlow.setVisible(false);
-        prevTile.container.setScale(1.0);
+    const info: BoardTileInfo = {
+      col: tile.col,
+      row: tile.row,
+      zone: tile.zone,
+      isBench: tile.isBench,
+      benchIndex: tile.benchIndex,
+      isOccupied: tile.occupiedBy !== null,
+      unitId: tile.occupiedBy,
+    };
+    EventBus.emit('tile-selected', info);
+  }
+
+  private redrawHighlights() {
+    const hg = this.highlightGraphics;
+    hg.clear();
+
+    // Draw Selected Tile
+    if (this.selectedKey) {
+      const tile = this.getTileByKey(this.selectedKey);
+      if (tile) {
+        const color = tile.zone === 'ENEMY' ? 0xf87171 : 0x60a5fa;
+        hg.lineStyle(3, color, 1);
+        hg.strokeRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
       }
     }
 
-    this.selectedTileKey = key;
-
-    // Draw active selected border (cyan/gold)
-    const isPlayerZone = tile.zone === 'PLAYER' || tile.zone === 'BENCH';
-    const selectColor = isPlayerZone ? 0x60a5fa : 0xf87171;
-
-    tile.highlightGlow.clear();
-    tile.highlightGlow.lineStyle(3, selectColor, 1);
-    tile.highlightGlow.strokeRect(
-      -Board.TILE_WIDTH / 2,
-      -Board.TILE_HEIGHT / 2,
-      Board.TILE_WIDTH,
-      Board.TILE_HEIGHT
-    );
-    tile.highlightGlow.setVisible(true);
-
-    const tileInfo: BoardTileInfo = {
-      col: tile.col,
-      row: tile.row,
-      zone: tile.zone,
-      isBench: tile.isBench,
-      benchIndex: tile.benchIndex,
-      isOccupied: tile.occupiedBy !== null,
-      unitId: tile.occupiedBy,
-    };
-
-    EventBus.emit('tile-selected', tileInfo);
+    // Draw Hovered Tile
+    if (this.activeHoverKey && this.activeHoverKey !== this.selectedKey) {
+      const tile = this.getTileByKey(this.activeHoverKey);
+      if (tile) {
+        const color = tile.zone === 'ENEMY' ? 0xef4444 : tile.zone === 'BENCH' ? 0x4ade80 : 0xdfba73;
+        hg.lineStyle(2.5, color, 0.95);
+        hg.strokeRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
+        hg.fillStyle(color, 0.12);
+        hg.fillRoundedRect(tile.x - tile.width / 2, tile.y - tile.height / 2, tile.width, tile.height, 6);
+      }
+    }
   }
 
-  private getTileByKey(key: string): TileObject | null {
+  private getTileByKey(key: string): TacticalTile | null {
     if (key.startsWith('bench_')) {
       const idx = parseInt(key.replace('bench_', ''), 10);
       return this.benchTiles[idx] || null;
@@ -339,28 +320,24 @@ export class Board {
     return this.tiles.get(key) || null;
   }
 
-  // --- Public API for units and placement ---
+  // --- Public APIs for Units & Drag & Drop ---
 
-  public getTile(col: number, row: number): TileObject | null {
+  public getTile(col: number, row: number): TacticalTile | null {
     return this.tiles.get(`${col},${row}`) || null;
   }
 
-  public getBenchTile(index: number): TileObject | null {
+  public getBenchTile(index: number): TacticalTile | null {
     return this.benchTiles[index] || null;
   }
 
   public getWorldPosition(col: number, row: number): { x: number; y: number } {
-    return {
-      x: this.startX + col * (Board.TILE_WIDTH + Board.TILE_GAP),
-      y: this.startY + row * (Board.TILE_HEIGHT + Board.TILE_GAP),
-    };
+    const tile = this.getTile(col, row);
+    return tile ? { x: tile.x, y: tile.y } : { x: 0, y: 0 };
   }
 
   public getBenchWorldPosition(index: number): { x: number; y: number } {
-    return {
-      x: this.startX + index * (Board.TILE_WIDTH + Board.TILE_GAP),
-      y: this.benchStartY,
-    };
+    const tile = this.getBenchTile(index);
+    return tile ? { x: tile.x, y: tile.y } : { x: 0, y: 0 };
   }
 
   public isPlayerZone(row: number): boolean {

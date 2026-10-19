@@ -8,26 +8,19 @@ export function App() {
   const [player, setPlayer] = useState<PlayerState>({
     hp: 100,
     maxHp: 100,
-    gold: 10,
-    level: 1,
-    xp: 0,
+    gold: 12,
+    level: 2,
+    xp: 2,
     round: 1,
   });
 
-  const handleStartRound = () => {
-    setPlayer((prev) => ({
-      ...prev,
-      gold: prev.gold + 5,
-      round: prev.round + 1,
-    }));
-  };
-
   return (
     <div className="game-root">
-      <HUD player={player} onStartRound={handleStartRound} />
-      <main className="game-center">
-        <GameContainer />
-      </main>
+      {/* Fullscreen Phaser Canvas Game Engine */}
+      <GameContainer />
+
+      {/* Reactive High Fantasy HUD Layer */}
+      <HUD player={player} onUpdatePlayer={setPlayer} />
     </div>
   );
 }
