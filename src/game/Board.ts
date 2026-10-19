@@ -41,14 +41,15 @@ export class Board {
   // Dynamic layout values
   private centerX = 0;
   private boardStartY = 0;
-  private boardHeight = 310;
-  private topWidth = 640;
-  private bottomWidth = 840;
+  private boardHeight = 400;
+  private topWidth = 720;
+  private bottomWidth = 940;
 
+  private benchFrameTop = 0;
   private benchStartY = 0;
-  private benchWidth = 800;
-  private benchSlotW = 90;
-  private benchSlotH = 50;
+  private benchWidth = 820;
+  private benchSlotW = 92;
+  private benchSlotH = 48;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -62,28 +63,28 @@ export class Board {
     const { width, height } = this.scene.scale;
     this.centerX = width / 2;
 
-    // Available vertical space between top bar (~55px) and bottom shop (~145px)
-    const availableH = height - 200;
-    this.boardHeight = Math.min(Math.max(availableH * 0.50, 260), 320);
-
-    // Responsive board widths
-    const maxAllowedW = Math.min(width - 340, 860);
-    this.bottomWidth = Math.max(maxAllowedW, 640);
+    // 1. TACTICAL BATTLE BOARD (Larger & wider, covering the stone terrace)
+    const maxAllowedW = Math.min(width - 320, 960);
+    this.bottomWidth = Math.max(maxAllowedW, 720);
     this.topWidth = this.bottomWidth * 0.76;
 
-    // Aligned over the background courtyard
-    this.boardStartY = 85 + (availableH - this.boardHeight - 110) / 2;
+    // Vertical room: from top bar (~55px) to bench (~240px from bottom)
+    const availableBoardH = height - 55 - 245;
+    this.boardHeight = Math.min(Math.max(availableBoardH * 0.90, 310), 420);
+    this.boardStartY = 68 + (availableBoardH - this.boardHeight) / 2;
 
-    // Bench slot geometry
-    this.benchWidth = Math.min(this.bottomWidth * 0.95, 760);
+    // 2. BENCH POSITION (Docked directly right above the bottom shop)
+    this.benchWidth = Math.min(this.bottomWidth * 0.96, 840);
     this.benchSlotW = (this.benchWidth - 7 * 8) / 8;
     this.benchSlotH = 48;
 
-    // Clean, generous gap between board and bench
-    const boardBottom = this.boardStartY + this.boardHeight;
-    const benchGap = 36; // 36px guaranteed clear air gap!
-    const frameTop = boardBottom + benchGap;
-    this.benchStartY = frameTop + 14 + this.benchSlotH / 2;
+    const headerH = 20;
+    const padY = 8;
+    const benchTotalH = headerH + this.benchSlotH + padY * 2; // ~84px
+
+    // 10px above the shop container (which sits at height - 145px)
+    this.benchFrameTop = height - 145 - benchTotalH - 10;
+    this.benchStartY = this.benchFrameTop + headerH + padY + this.benchSlotH / 2;
   }
 
   // Calculate 2.5D perspective grid intersection
@@ -224,16 +225,15 @@ export class Board {
 
   private createBench() {
     const g = this.boardGraphics;
-    const benchY = this.benchStartY;
     const benchW = this.benchWidth;
-
+    const headerH = 20;
     const padX = 14;
     const padY = 8;
-    const frameTop = benchY - this.benchSlotH / 2 - padY - 8;
-    const frameH = this.benchSlotH + padY * 2 + 10;
+    const frameTop = this.benchFrameTop;
+    const frameH = headerH + this.benchSlotH + padY * 2;
     const frameW = benchW + padX * 2;
 
-    // Bench Container Frame
+    // Bench Container Frame (Docked cleanly above shop)
     g.fillStyle(0x0a101b, 0.96);
     g.fillRoundedRect(this.centerX - frameW / 2, frameTop, frameW, frameH, 8);
     g.lineStyle(2, 0xdfba73, 0.95);
@@ -243,8 +243,8 @@ export class Board {
     g.lineStyle(1, 0x2e3e52, 0.5);
     g.strokeRoundedRect(this.centerX - frameW / 2 + 2, frameTop + 2, frameW - 4, frameH - 4, 7);
 
-    // Title label INSIDE frame: BANCO (0/8)
-    this.scene.add.text(this.centerX - frameW / 2 + 14, frameTop + 5, 'BANCO (0/8)', {
+    // Title label in dedicated header bar: BANCO (0/8)
+    this.scene.add.text(this.centerX - frameW / 2 + 16, frameTop + 5, 'BANCO (0/8)', {
       fontFamily: 'Cinzel, Georgia, serif',
       fontSize: '11px',
       color: '#dfba73',
@@ -252,17 +252,18 @@ export class Board {
       letterSpacing: 1,
     }).setOrigin(0, 0);
 
-    // 8 Bench Slots
+    // 8 Bench Slots (Located safely below the header bar)
     const slotGap = 8;
     const totalSlotsW = Board.BENCH_SLOTS * this.benchSlotW + (Board.BENCH_SLOTS - 1) * slotGap;
     const startX = this.centerX - totalSlotsW / 2 + this.benchSlotW / 2;
+    const slotsCenterY = this.benchStartY;
 
     for (let i = 0; i < Board.BENCH_SLOTS; i++) {
       const bx = startX + i * (this.benchSlotW + slotGap);
       g.fillStyle(0x111926, 0.96);
-      g.fillRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
+      g.fillRoundedRect(bx - this.benchSlotW / 2, slotsCenterY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
       g.lineStyle(1.5, 0x3b82f6, 0.8);
-      g.strokeRoundedRect(bx - this.benchSlotW / 2, benchY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
+      g.strokeRoundedRect(bx - this.benchSlotW / 2, slotsCenterY - this.benchSlotH / 2, this.benchSlotW, this.benchSlotH, 6);
     }
   }
 
